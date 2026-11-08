@@ -32,12 +32,24 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
             item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
             item.Property<string>("Description").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("description");
+            item.Property<Guid?>("LlmConfigurationId").HasColumnType("uuid").HasColumnName("llm_configuration_id");
             item.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("name");
             item.Property<Guid>("ProjectId").HasColumnType("uuid").HasColumnName("project_id");
             item.Property<string>("SystemPrompt").IsRequired().HasMaxLength(20000).HasColumnType("character varying(20000)").HasColumnName("system_prompt");
             item.HasKey("Id");
+            item.HasIndex("LlmConfigurationId");
             item.HasIndex("ProjectId", "Name").IsUnique();
             item.ToTable("agents");
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentMcpToolGrant", item =>
+        {
+            item.Property<Guid>("AgentId").HasColumnType("uuid").HasColumnName("agent_id");
+            item.Property<Guid>("McpServerId").HasColumnType("uuid").HasColumnName("mcp_server_id");
+            item.Property<string>("ToolName").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)").HasColumnName("tool_name");
+            item.HasKey("AgentId", "McpServerId", "ToolName");
+            item.HasIndex("McpServerId");
+            item.ToTable("agent_mcp_tool_grants");
         });
 
         modelBuilder.Entity("AgentPlatform.Domain.Projects.Project", item =>
@@ -111,7 +123,14 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentDefinition", item =>
         {
+            item.HasOne("AgentPlatform.Domain.Llm.LlmConfiguration", null).WithMany().HasForeignKey("LlmConfigurationId").OnDelete(DeleteBehavior.SetNull);
             item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentMcpToolGrant", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Agents.AgentDefinition", null).WithMany("McpToolGrants").HasForeignKey("AgentId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            item.HasOne("AgentPlatform.Domain.Mcp.McpServer", null).WithMany().HasForeignKey("McpServerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
 
         modelBuilder.Entity("AgentPlatform.Domain.Mcp.McpServer", item =>

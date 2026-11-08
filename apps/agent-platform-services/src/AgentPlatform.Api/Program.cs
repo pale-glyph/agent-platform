@@ -97,7 +97,7 @@ agents.MapPost("/", async (Guid projectId, AgentRequest request, AgentService se
 {
     try
     {
-        var agent = await service.CreateAsync(projectId, request.Name ?? string.Empty, request.Description ?? string.Empty, request.SystemPrompt ?? string.Empty, cancellationToken);
+        var agent = await service.CreateAsync(projectId, request.Name ?? string.Empty, request.Description ?? string.Empty, request.SystemPrompt ?? string.Empty, request.LlmConfigurationId, (request.McpToolGrants ?? []).Select(item => new McpToolGrantSummary(item.McpServerId, item.ToolName ?? string.Empty)).ToArray(), cancellationToken);
         return agent is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agents/{agent.Id}", AgentResponse.FromSummary(agent));
     }
     catch (ArgumentException exception)
@@ -110,7 +110,7 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 {
     try
     {
-        var agent = await service.UpdateAsync(projectId, agentId, request.Name ?? string.Empty, request.Description ?? string.Empty, request.SystemPrompt ?? string.Empty, cancellationToken);
+        var agent = await service.UpdateAsync(projectId, agentId, request.Name ?? string.Empty, request.Description ?? string.Empty, request.SystemPrompt ?? string.Empty, request.LlmConfigurationId, (request.McpToolGrants ?? []).Select(item => new McpToolGrantSummary(item.McpServerId, item.ToolName ?? string.Empty)).ToArray(), cancellationToken);
         return agent is null ? Results.NotFound() : Results.Ok(AgentResponse.FromSummary(agent));
     }
     catch (ArgumentException exception)
@@ -206,7 +206,8 @@ webhooks.MapPost("/deliveries/retry-failed", async (Guid projectId, WebhookServi
 app.Run();
 
 public sealed record ProjectRequest(string? Name);
-public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt);
+public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt, Guid? LlmConfigurationId, McpToolGrantRequest[]? McpToolGrants);
+public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
 public sealed record WebhookRequest(string? Name, string? EndpointUrl, string? Secret, string[]? Events, bool? Enabled);
@@ -214,9 +215,9 @@ public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset Create
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);
 }
-public sealed record AgentResponse(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, DateTimeOffset CreatedAt)
+public sealed record AgentResponse(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, Guid? LlmConfigurationId, IReadOnlyList<McpToolGrantSummary> McpToolGrants, DateTimeOffset CreatedAt)
 {
-    public static AgentResponse FromSummary(AgentSummary summary) => new(summary.Id, summary.ProjectId, summary.Name, summary.Description, summary.SystemPrompt, summary.CreatedAt);
+    public static AgentResponse FromSummary(AgentSummary summary) => new(summary.Id, summary.ProjectId, summary.Name, summary.Description, summary.SystemPrompt, summary.LlmConfigurationId, summary.McpToolGrants, summary.CreatedAt);
 }
 public sealed record McpServerResponse(Guid Id, Guid ProjectId, string Name, string Endpoint, int CacheTtlSeconds, McpServerSecurity Security, DateTimeOffset? CacheExpiresAt, DateTimeOffset CreatedAt)
 {

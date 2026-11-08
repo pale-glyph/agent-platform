@@ -11,6 +11,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 {
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
+    public DbSet<AgentMcpToolGrant> AgentMcpToolGrants => Set<AgentMcpToolGrant>();
     public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
     public DbSet<McpServer> McpServers => Set<McpServer>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
@@ -33,9 +34,20 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         agent.Property(item => item.Name).HasColumnName("name").HasMaxLength(AgentDefinition.MaximumNameLength).IsRequired();
         agent.Property(item => item.Description).HasColumnName("description").HasMaxLength(AgentDefinition.MaximumDescriptionLength).IsRequired();
         agent.Property(item => item.SystemPrompt).HasColumnName("system_prompt").HasMaxLength(AgentDefinition.MaximumSystemPromptLength).IsRequired();
+        agent.Property(item => item.LlmConfigurationId).HasColumnName("llm_configuration_id");
         agent.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
         agent.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
         agent.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        agent.HasOne<LlmConfiguration>().WithMany().HasForeignKey(item => item.LlmConfigurationId).OnDelete(DeleteBehavior.SetNull);
+
+        var grant = modelBuilder.Entity<AgentMcpToolGrant>();
+        grant.ToTable("agent_mcp_tool_grants");
+        grant.HasKey(item => new { item.AgentId, item.McpServerId, item.ToolName });
+        grant.Property(item => item.AgentId).HasColumnName("agent_id");
+        grant.Property(item => item.McpServerId).HasColumnName("mcp_server_id");
+        grant.Property(item => item.ToolName).HasColumnName("tool_name").HasMaxLength(AgentMcpToolGrant.MaximumToolNameLength);
+        grant.HasOne<AgentDefinition>().WithMany(item => item.McpToolGrants).HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
+        grant.HasOne<McpServer>().WithMany().HasForeignKey(item => item.McpServerId).OnDelete(DeleteBehavior.Cascade);
 
         var llm = modelBuilder.Entity<LlmConfiguration>();
         llm.ToTable("llm_configurations"); llm.HasKey(item => item.Id);
