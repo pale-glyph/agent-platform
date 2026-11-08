@@ -39,16 +39,26 @@ public sealed class AgentInstanceService(IAgentRepository agents, IAgentInstance
         return new AgentExecutionPage(page, hasMore ? page[^1].SequenceNumber : null);
     }
 
+    public async Task<bool> DeleteAsync(Guid projectId, Guid instanceId, CancellationToken cancellationToken)
+    {
+        var instance = await instances.FindAsync(projectId, instanceId, cancellationToken);
+        if (instance is null) return false;
+        instances.Remove(instance);
+        await instances.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<SubmittedMessage?> SubmitMessageAsync(Guid projectId, Guid instanceId, string content, AgentMessageDelivery delivery, CancellationToken cancellationToken)
     {
         if (delivery == AgentMessageDelivery.Initial) throw new ArgumentException("Initial delivery can only be used when triggering an instance.", nameof(delivery));
         var instance = await instances.FindAsync(projectId, instanceId, cancellationToken);
         if (instance is null) return null;
         var now = timeProvider.GetUtcNow();
+        var resumed = instance.Resume();
         var status = delivery == AgentMessageDelivery.Queued ? AgentMessageStatus.Pending : AgentMessageStatus.Delivered;
         var entry = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.User, delivery, status, content, now);
         if (delivery == AgentMessageDelivery.Queued) instance.QueueMessage(entry.Id);
-        var cancellationRequested = delivery == AgentMessageDelivery.Steering && instance.RequestCancellation(now);
+        var cancellationRequested = delivery == AgentMessageDelivery.Steering && !resumed && instance.RequestCancellation(now);
         await instances.AddEntryAsync(entry, cancellationToken);
         await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentMessage, ToSummary(entry), cancellationToken);
         await instances.SaveChangesAsync(cancellationToken);

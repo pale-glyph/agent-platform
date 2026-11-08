@@ -147,6 +147,8 @@ agentInstances.MapGet("/{instanceId:guid}/timeline", async (Guid projectId, Guid
     }
     catch (ArgumentOutOfRangeException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["pagination"] = [exception.Message] }); }
 });
+agentInstances.MapDelete("/{instanceId:guid}", async (Guid projectId, Guid instanceId, AgentInstanceService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, instanceId, ct) ? Results.NoContent() : Results.NotFound());
 agentInstances.MapPost("/{instanceId:guid}/messages", async (Guid projectId, Guid instanceId, SubmitAgentMessageRequest request, AgentInstanceService service, CancellationToken ct) =>
 {
     try

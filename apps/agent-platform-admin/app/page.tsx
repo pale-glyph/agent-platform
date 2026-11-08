@@ -184,6 +184,7 @@ export default function HomePage() {
   const [apiKey, setApiKey] = useState("");
   const [page, setPage] = useState<"projects" | "chat" | "llm">("projects");
   const [agentInstances, setAgentInstances] = useState<AgentInstance[]>([]);
+  const [jimInstances, setJimInstances] = useState<AgentInstance[]>([]);
   const [activeInstanceId, setActiveInstanceId] = useState("");
   const [jimProjectId, setJimProjectId] = useState("");
   const [initialPrompt, setInitialPrompt] = useState("");
@@ -338,6 +339,7 @@ export default function HomePage() {
   };
   const loadJimInstances = async () => {
     if (!jimProjectId || !jimAgentId) {
+      setJimInstances([]);
       setActiveInstanceId("");
       setTimeline([]);
       return;
@@ -351,6 +353,7 @@ export default function HomePage() {
       const items = ((await response.json()) as AgentInstance[]).filter(
         (item) => item.agentId === jimAgentId,
       );
+      setJimInstances(items);
       setActiveInstanceId((current) =>
         current && items.some((item) => item.id === current)
           ? current
@@ -647,6 +650,20 @@ export default function HomePage() {
       );
     } finally {
       setIsSendingMessage(false);
+    }
+  };
+  const deleteConversation = async (instance: AgentInstance) => {
+    if (!jimProjectId || !window.confirm("Delete this conversation and its execution history? This cannot be undone.")) return;
+    try {
+      const response = await fetch(`/api/projects/${jimProjectId}/agent-instances/${instance.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await readError(response));
+      if (activeInstanceId === instance.id) {
+        setActiveInstanceId("");
+        setTimeline([]);
+      }
+      await loadJimInstances();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The conversation could not be deleted.");
     }
   };
 
@@ -1761,7 +1778,7 @@ export default function HomePage() {
           {page === "chat" && (
             <section className="project-panel tab-panel conversation-panel">
               <div className="panel-heading"><div><p className="eyebrow">Assistant</p><h2>Jim</h2></div></div>
-              {!jimAgentId ? <div className="empty-state compact-empty"><strong>Jim is not configured</strong><span>Set NEXT_PUBLIC_JIM_AGENT_ID to Jim’s agent UUID and restart the admin app.</span></div> : !jimProjectId ? <div className="empty-state compact-empty"><strong>Finding Jim…</strong><span>Jim’s configured agent UUID was not found in an available project yet.</span></div> : <div className="conversation-layout"><aside className="conversation-list"><form onSubmit={startConversation}><label htmlFor="initial-prompt">New conversation</label><textarea id="initial-prompt" value={initialPrompt} onChange={(event) => setInitialPrompt(event.target.value)} placeholder="Ask Jim to configure a project." required /><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Starting…" : "Start conversation"}</button></form></aside><section className="conversation-thread" aria-live="polite">{!activeInstanceId ? <div className="empty-state compact-empty"><strong>Talk to Jim</strong><span>Start a conversation to ask Jim to configure your projects.</span></div> : <>{timeline.length === 0 ? <div className="empty-state compact-empty"><strong>Waiting for activity</strong><span>Jim’s execution timeline will appear here.</span></div> : <ol>{timeline.map((entry) => <li key={entry.id} className={`conversation-entry ${entry.type.toLowerCase()} ${entry.role === "User" ? "operator" : "agent"}`}>{entry.type === "ToolCall" ? <><strong>Tool call: {entry.toolName}</strong><pre>{entry.toolArguments}</pre>{entry.toolResult && <pre>{entry.toolResult}</pre>}</> : <><strong>{entry.role === "User" ? "You" : "Jim"}{entry.delivery && <small>{entry.delivery} · {entry.messageStatus}</small>}</strong><p>{entry.content}</p></>}</li>)}</ol>}<form className="conversation-compose" onSubmit={sendConversationMessage}><label htmlFor="conversation-message">Message Jim</label><textarea id="conversation-message" value={outgoingMessage} onChange={(event) => setOutgoingMessage(event.target.value)} placeholder="Ask Jim to configure a project." required /><div><select aria-label="Message delivery" value={messageDelivery} onChange={(event) => setMessageDelivery(event.target.value as "Queued" | "Steering")}><option value="Queued">Queue message</option><option value="Steering">Steer current request</option></select><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Sending…" : "Send"}</button></div></form></>}</section></div>}
+              {!jimAgentId ? <div className="empty-state compact-empty"><strong>Jim is not configured</strong><span>Set NEXT_PUBLIC_JIM_AGENT_ID to Jim’s agent UUID and restart the admin app.</span></div> : !jimProjectId ? <div className="empty-state compact-empty"><strong>Finding Jim…</strong><span>Jim’s configured agent UUID was not found in an available project yet.</span></div> : <div className="conversation-layout"><aside className="conversation-list"><form onSubmit={startConversation}><label htmlFor="initial-prompt">New conversation</label><textarea id="initial-prompt" value={initialPrompt} onChange={(event) => setInitialPrompt(event.target.value)} placeholder="Ask Jim to configure a project." required /><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Starting…" : "Start conversation"}</button></form><div className="conversation-history" aria-label="Jim conversations">{jimInstances.map((instance) => <div className="conversation-history-item" key={instance.id}><button className={instance.id === activeInstanceId ? "active" : ""} type="button" onClick={() => setActiveInstanceId(instance.id)}><strong>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(instance.createdAt))}</strong><small>{instance.status}</small></button><button aria-label="Delete conversation" className="conversation-delete" type="button" onClick={() => void deleteConversation(instance)}>Delete</button></div>)}</div></aside><section className="conversation-thread" aria-live="polite">{!activeInstanceId ? <div className="empty-state compact-empty"><strong>Talk to Jim</strong><span>Start a conversation to ask Jim to configure your projects.</span></div> : <>{timeline.length === 0 ? <div className="empty-state compact-empty"><strong>Waiting for activity</strong><span>Jim’s execution timeline will appear here.</span></div> : <ol>{timeline.map((entry) => <li key={entry.id} className={`conversation-entry ${entry.type.toLowerCase()} ${entry.role === "User" ? "operator" : "agent"}`}>{entry.type === "ToolCall" ? <><strong>Tool call: {entry.toolName}</strong><pre>{entry.toolArguments}</pre>{entry.toolResult && <pre>{entry.toolResult}</pre>}</> : <><strong>{entry.role === "User" ? "You" : "Jim"}{entry.delivery && <small>{entry.delivery} · {entry.messageStatus}</small>}</strong><p>{entry.content}</p></>}</li>)}</ol>}<form className="conversation-compose" onSubmit={sendConversationMessage}><label htmlFor="conversation-message">Message Jim</label><textarea id="conversation-message" value={outgoingMessage} onChange={(event) => setOutgoingMessage(event.target.value)} placeholder="Ask Jim to configure a project." required /><div><select aria-label="Message delivery" value={messageDelivery} onChange={(event) => setMessageDelivery(event.target.value as "Queued" | "Steering")}><option value="Queued">Queue message</option><option value="Steering">Steer current request</option></select><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Sending…" : "Send"}</button></div></form></>}</section></div>}
             </section>
           )}
           {page === "llm" && (

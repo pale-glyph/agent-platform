@@ -39,6 +39,13 @@ public sealed class AgentRuntimeService(
         }
 
         var toolDefinitions = await GetGrantedToolDefinitionsAsync(projectId, grantedTools, cancellationToken);
+        var pendingMessages = await instances.ListPendingMessagesAsync(instance.Id, cancellationToken);
+        foreach (var pendingMessage in pendingMessages)
+        {
+            pendingMessage.MarkDelivered();
+            instance.MarkQueuedMessageDelivered(pendingMessage.Id);
+        }
+        if (pendingMessages.Count > 0) await instances.SaveChangesAsync(cancellationToken);
         var messages = (await instances.ListEntriesAsync(instance.Id, null, 10_000, cancellationToken))
             .Where(entry => entry.Type == AgentExecutionEntryType.Message && entry.MessageStatus != AgentMessageStatus.Cancelled)
             .Select(entry => new RuntimeChatMessage(entry.Role == AgentMessageRole.User ? "user" : "assistant", entry.Content))
@@ -56,7 +63,8 @@ public sealed class AgentRuntimeService(
                 var response = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, timeProvider.GetUtcNow());
                 await instances.AddEntryAsync(response, cancellationToken);
                 await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentMessage, ToWebhookPayload(response), cancellationToken);
-                instance.Complete();
+                if ((await instances.ListPendingMessagesAsync(instance.Id, cancellationToken)).Count == 0)
+                    instance.Complete();
                 await instances.SaveChangesAsync(cancellationToken);
                 return true;
             }

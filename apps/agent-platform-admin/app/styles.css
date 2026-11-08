@@ -217,6 +217,9 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .conversation-list textarea { min-height: 6rem; resize: vertical; }
 .conversation-list form { display: grid; gap: 0.55rem; }
 .conversation-history { display: grid; gap: 0.35rem; margin-top: 0.35rem; max-height: 17rem; overflow: auto; }
+.conversation-history-item { align-items: center; display: grid; gap: 0.3rem; grid-template-columns: minmax(0, 1fr) auto; }
+.conversation-history-item .conversation-delete { background: transparent; border: 0; color: #e79ba8; font-size: 0.72rem; padding: 0.4rem; }
+.conversation-history-item .conversation-delete:hover, .conversation-history-item .conversation-delete:focus-visible { color: #ffd7df; text-decoration: underline; }
 .conversation-history button { background: transparent; border: 1px solid transparent; border-radius: 0.45rem; color: #c9d2df; display: grid; gap: 0.2rem; padding: 0.6rem; text-align: left; }
 .conversation-history button:hover, .conversation-history button:focus-visible, .conversation-history button.active { background: #202b3b; border-color: #3b5260; outline: none; }
 .conversation-history small { color: #8491a3; font-size: 0.7rem; }

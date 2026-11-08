@@ -27,6 +27,13 @@ public sealed class AgentExecutionEntry
     public static AgentExecutionEntry ToolCall(Guid id, Guid instanceId, long sequenceNumber, string toolName, string arguments, string? result, DateTimeOffset createdAt) =>
         new(id, instanceId, sequenceNumber, AgentExecutionEntryType.ToolCall, createdAt) { ToolName = Normalize(toolName, "Tool name", MaximumToolNameLength), ToolArguments = Normalize(arguments, "Tool arguments"), ToolResult = result is null ? null : Normalize(result, "Tool result") };
 
+    public void MarkDelivered()
+    {
+        if (Type != AgentExecutionEntryType.Message || MessageStatus != AgentMessageStatus.Pending)
+            throw new InvalidOperationException("Only a pending message can be delivered.");
+        MessageStatus = AgentMessageStatus.Delivered;
+    }
+
     private static string Normalize(string value, string fieldName, int maximumLength = MaximumContentLength)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException($"{fieldName} is required.", nameof(value));

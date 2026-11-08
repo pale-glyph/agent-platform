@@ -28,6 +28,14 @@ public sealed class AgentInstance
         Status = AgentInstanceStatus.Completed;
     }
 
+    public bool Resume()
+    {
+        if (Status != AgentInstanceStatus.Completed) return false;
+        Status = AgentInstanceStatus.Running;
+        CancellationRequestedAt = null;
+        return true;
+    }
+
     public void Fail()
     {
         if (Status == AgentInstanceStatus.Completed) throw new InvalidOperationException("A completed instance cannot fail.");
