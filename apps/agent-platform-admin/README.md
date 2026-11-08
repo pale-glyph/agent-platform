@@ -11,6 +11,10 @@ npm run dev
 
 The development server runs at `http://localhost:3000`. Configure the .NET API base URL through environment configuration once authenticated API calls are introduced.
 
+## Live agent updates
+
+The admin receives live execution updates over Server-Sent Events. Create a project webhook with endpoint `http://admin:3000/api/agent-events`, subscribe it to `agent.message` and `agent.tool_call`, and set its signing secret to the same value as `AGENT_EVENTS_WEBHOOK_SECRET` on the admin container. The receiver verifies the platform HMAC signature before forwarding the event to connected browsers.
+
 ## Container
 
 From the repository root, run `./run.sh` to build this application along with the API and worker images and start the complete Docker Compose stack.

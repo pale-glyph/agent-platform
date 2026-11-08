@@ -42,6 +42,41 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.ToTable("agents");
         });
 
+        modelBuilder.Entity("AgentPlatform.Domain.Instances.AgentInstance", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<Guid>("AgentId").HasColumnType("uuid").HasColumnName("agent_id");
+            item.Property<DateTimeOffset?>("CancellationRequestedAt").HasColumnType("timestamp with time zone").HasColumnName("cancellation_requested_at");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<long>("NextSequenceNumber").HasColumnType("bigint").HasColumnName("next_sequence_number");
+            item.Property<Guid?>("PendingQueuedMessageId").HasColumnType("uuid").HasColumnName("pending_queued_message_id");
+            item.Property<Guid>("ProjectId").HasColumnType("uuid").HasColumnName("project_id");
+            item.Property<AgentPlatform.Domain.Instances.AgentInstanceStatus>("Status").IsRequired().HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("status");
+            item.HasKey("Id");
+            item.HasIndex("AgentId");
+            item.HasIndex("ProjectId", "CreatedAt");
+            item.ToTable("agent_instances");
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Instances.AgentExecutionEntry", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<string>("Content").HasMaxLength(100000).HasColumnType("character varying(100000)").HasColumnName("content");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<AgentPlatform.Domain.Instances.AgentMessageDelivery?>("Delivery").HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("delivery");
+            item.Property<Guid>("InstanceId").HasColumnType("uuid").HasColumnName("instance_id");
+            item.Property<AgentPlatform.Domain.Instances.AgentMessageStatus?>("MessageStatus").HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("message_status");
+            item.Property<AgentPlatform.Domain.Instances.AgentMessageRole?>("Role").HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("role");
+            item.Property<long>("SequenceNumber").HasColumnType("bigint").HasColumnName("sequence_number");
+            item.Property<string>("ToolArguments").HasMaxLength(100000).HasColumnType("character varying(100000)").HasColumnName("tool_arguments");
+            item.Property<string>("ToolName").HasMaxLength(500).HasColumnType("character varying(500)").HasColumnName("tool_name");
+            item.Property<string>("ToolResult").HasMaxLength(100000).HasColumnType("character varying(100000)").HasColumnName("tool_result");
+            item.Property<AgentPlatform.Domain.Instances.AgentExecutionEntryType>("Type").IsRequired().HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("type");
+            item.HasKey("Id");
+            item.HasIndex("InstanceId", "SequenceNumber").IsUnique();
+            item.ToTable("agent_execution_entries");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentMcpToolGrant", item =>
         {
             item.Property<Guid>("AgentId").HasColumnType("uuid").HasColumnName("agent_id");
@@ -50,6 +85,17 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.HasKey("AgentId", "McpServerId", "ToolName");
             item.HasIndex("McpServerId");
             item.ToTable("agent_mcp_tool_grants");
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Instances.AgentInstance", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Agents.AgentDefinition", null).WithMany().HasForeignKey("AgentId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Instances.AgentExecutionEntry", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Instances.AgentInstance", null).WithMany().HasForeignKey("InstanceId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
 
         modelBuilder.Entity("AgentPlatform.Domain.Projects.Project", item =>

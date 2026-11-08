@@ -36,8 +36,12 @@ services:
     build:
       context: .
       dockerfile: apps/agent-platform-admin/Dockerfile
+      args:
+        JIM_AGENT_ID: ${JIM_AGENT_ID:-}
     environment:
       API_INTERNAL_URL: http://api:8080
+      NEXT_PUBLIC_JIM_AGENT_ID: ${JIM_AGENT_ID:-}
+      AGENT_EVENTS_WEBHOOK_SECRET: ${AGENT_EVENTS_WEBHOOK_SECRET:-}
     ports:
       - "${ADMIN_PORT}:3000"
     depends_on:

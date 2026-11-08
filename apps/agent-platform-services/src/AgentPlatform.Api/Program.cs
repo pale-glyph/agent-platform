@@ -3,6 +3,8 @@ using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
 using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Webhooks;
+using AgentPlatform.Application.Instances;
+using AgentPlatform.Application.Runtime;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
@@ -20,6 +22,8 @@ builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
+builder.Services.AddScoped<AgentInstanceService>();
+builder.Services.AddScoped<AgentRuntimeService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHealthChecks();
@@ -122,6 +126,49 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 agents.MapDelete("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, agentId, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
+agents.MapPost("/{agentId:guid}/instances", async (Guid projectId, Guid agentId, TriggerAgentInstanceRequest request, AgentInstanceService service, CancellationToken ct) =>
+{
+    try
+    {
+        var instance = await service.TriggerAsync(projectId, agentId, request.InitialPrompt ?? string.Empty, ct);
+        return instance is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agent-instances/{instance.Id}", instance);
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["initialPrompt"] = [exception.Message] }); }
+});
+
+var agentInstances = projects.MapGroup("/{projectId:guid}/agent-instances");
+agentInstances.MapGet("/", async (Guid projectId, AgentInstanceService service, CancellationToken ct) => Results.Ok(await service.ListAsync(projectId, ct)));
+agentInstances.MapGet("/{instanceId:guid}/timeline", async (Guid projectId, Guid instanceId, long? afterSequence, int? limit, AgentInstanceService service, CancellationToken ct) =>
+{
+    try
+    {
+        var page = await service.ListEntriesAsync(projectId, instanceId, afterSequence, limit ?? 50, ct);
+        return page is null ? Results.NotFound() : Results.Ok(page);
+    }
+    catch (ArgumentOutOfRangeException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["pagination"] = [exception.Message] }); }
+});
+agentInstances.MapDelete("/{instanceId:guid}", async (Guid projectId, Guid instanceId, AgentInstanceService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, instanceId, ct) ? Results.NoContent() : Results.NotFound());
+agentInstances.MapPost("/{instanceId:guid}/messages", async (Guid projectId, Guid instanceId, SubmitAgentMessageRequest request, AgentInstanceService service, CancellationToken ct) =>
+{
+    try
+    {
+        var message = await service.SubmitMessageAsync(projectId, instanceId, request.Content ?? string.Empty, request.Delivery, ct);
+        return message is null ? Results.NotFound() : Results.Accepted($"/api/projects/{projectId}/agent-instances/{instanceId}/timeline", message);
+    }
+    catch (InvalidOperationException exception) { return Results.Conflict(new { title = exception.Message }); }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["message"] = [exception.Message] }); }
+});
+agentInstances.MapPost("/{instanceId:guid}/tool-calls", async (Guid projectId, Guid instanceId, RecordToolCallRequest request, AgentInstanceService service, CancellationToken ct) =>
+{
+    try
+    {
+        var toolCall = await service.RecordToolCallAsync(projectId, instanceId, request.ToolName ?? string.Empty, request.Arguments ?? string.Empty, request.Result, ct);
+        return toolCall is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agent-instances/{instanceId}/timeline", toolCall);
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["toolCall"] = [exception.Message] }); }
+});
+
 var mcpServers = projects.MapGroup("/{projectId:guid}/mcp-servers");
 mcpServers.MapGet("/", async (Guid projectId, McpServerService service, CancellationToken ct) =>
 {
@@ -211,6 +258,9 @@ public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
 public sealed record WebhookRequest(string? Name, string? EndpointUrl, string? Secret, string[]? Events, bool? Enabled);
+public sealed record TriggerAgentInstanceRequest(string? InitialPrompt);
+public sealed record SubmitAgentMessageRequest(string? Content, AgentPlatform.Domain.Instances.AgentMessageDelivery Delivery);
+public sealed record RecordToolCallRequest(string? ToolName, string? Arguments, string? Result);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);
