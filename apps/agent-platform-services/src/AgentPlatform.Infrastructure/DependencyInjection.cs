@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IWebhookRepository, EfWebhookRepository>();
         services.AddScoped<IWebhookEventPublisher, EfWebhookEventPublisher>();
         services.AddScoped<IWebhookDeliveryStore, EfWebhookDeliveryStore>();
+        services.AddScoped<IUsageMetricRepository, EfUsageMetricRepository>();
         services.AddHttpClient("webhooks", client => client.Timeout = TimeSpan.FromSeconds(15));
         return services;
     }

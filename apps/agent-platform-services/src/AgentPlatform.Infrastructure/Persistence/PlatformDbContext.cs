@@ -4,6 +4,7 @@ using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Domain.Projects;
 using AgentPlatform.Domain.Webhooks;
 using AgentPlatform.Domain.Instances;
+using AgentPlatform.Domain.Metrics;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgentPlatform.Infrastructure.Persistence;
@@ -19,9 +20,23 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<AgentInstance> AgentInstances => Set<AgentInstance>();
     public DbSet<AgentExecutionEntry> AgentExecutionEntries => Set<AgentExecutionEntry>();
+    public DbSet<UsageMetricBucket> UsageMetricBuckets => Set<UsageMetricBucket>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var usage = modelBuilder.Entity<UsageMetricBucket>();
+        usage.ToTable("usage_metric_buckets");
+        usage.HasKey(item => new { item.Scope, item.ScopeId, item.BucketStart });
+        usage.Property(item => item.Scope).HasColumnName("scope").HasConversion<string>().HasMaxLength(20).IsRequired();
+        usage.Property(item => item.ScopeId).HasColumnName("scope_id");
+        usage.Property(item => item.BucketStart).HasColumnName("bucket_start").IsRequired();
+        usage.Property(item => item.CallCount).HasColumnName("call_count").IsRequired();
+        usage.Property(item => item.InputTokens).HasColumnName("input_tokens").IsRequired();
+        usage.Property(item => item.CachedInputTokens).HasColumnName("cached_input_tokens").IsRequired();
+        usage.Property(item => item.OutputTokens).HasColumnName("output_tokens").IsRequired();
+        usage.Property(item => item.ReasoningTokens).HasColumnName("reasoning_tokens").IsRequired();
+        usage.Property(item => item.TotalTokens).HasColumnName("total_tokens").IsRequired();
+
         var instance = modelBuilder.Entity<AgentInstance>();
         instance.ToTable("agent_instances");
         instance.HasKey(item => item.Id);

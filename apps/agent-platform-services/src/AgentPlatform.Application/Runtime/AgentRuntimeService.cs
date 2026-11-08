@@ -14,6 +14,7 @@ public sealed class AgentRuntimeService(
     IMcpServerRepository mcpServers,
     McpServerService mcpServerService,
     IWebhookEventPublisher webhookEvents,
+    IUsageMetricRepository usageMetrics,
     IOpenAiCompatibleClient llm,
     IMcpToolClient mcpTools,
     TimeProvider timeProvider)
@@ -56,11 +57,13 @@ public sealed class AgentRuntimeService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var completion = await llm.CompleteAsync(configuration, messages, toolDefinitions, cancellationToken);
+            var completionAt = timeProvider.GetUtcNow();
+            await usageMetrics.RecordCompletionAsync(projectId, agent.Id, configuration.Id, completionAt, completion.Usage.InputTokens, completion.Usage.CachedInputTokens, completion.Usage.OutputTokens, completion.Usage.ReasoningTokens, completion.Usage.TotalTokens, cancellationToken);
             if (completion.ToolCalls.Count == 0)
             {
                 var content = completion.Content;
                 if (string.IsNullOrWhiteSpace(content)) throw new InvalidOperationException("The model returned neither content nor tool calls.");
-                var response = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, timeProvider.GetUtcNow());
+                var response = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, completionAt);
                 await instances.AddEntryAsync(response, cancellationToken);
                 await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentMessage, ToWebhookPayload(response), cancellationToken);
                 if ((await instances.ListPendingMessagesAsync(instance.Id, cancellationToken)).Count == 0)

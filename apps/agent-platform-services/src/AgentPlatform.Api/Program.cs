@@ -5,6 +5,7 @@ using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Webhooks;
 using AgentPlatform.Application.Instances;
 using AgentPlatform.Application.Runtime;
+using AgentPlatform.Application.Metrics;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
@@ -24,6 +25,7 @@ builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
 builder.Services.AddScoped<AgentInstanceService>();
 builder.Services.AddScoped<AgentRuntimeService>();
+builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHealthChecks();
@@ -50,6 +52,14 @@ llmConfigurations.MapGet("/", async (LlmConfigurationService service, Cancellati
 llmConfigurations.MapPost("/", async (LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.CreateAsync(request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey ?? "", ct); return Results.Created($"/api/llm-configurations/{item.Id}", item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
 llmConfigurations.MapPut("/{id:guid}", async (Guid id, LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.UpdateAsync(id, request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey, ct); return item is null ? Results.NotFound() : Results.Ok(item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
 llmConfigurations.MapDelete("/{id:guid}", async (Guid id, LlmConfigurationService service, CancellationToken ct) => await service.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+llmConfigurations.MapGet("/{id:guid}/usage", async (Guid id, DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
+{
+    var metrics = await service.ListLlmAsync(id, from, to, ct);
+    return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
+});
+
+app.MapGet("/api/usage/platform", async (DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
+    Results.Ok((await service.ListPlatformAsync(from, to, ct)).Select(UsageMetricBucketSummary.From)));
 
 var projects = app.MapGroup("/api/projects");
 projects.MapGet("/", async (ProjectService service, CancellationToken cancellationToken) =>
@@ -89,6 +99,11 @@ projects.MapPut("/{projectId:guid}", async (Guid projectId, ProjectRequest reque
 
 projects.MapDelete("/{projectId:guid}", async (Guid projectId, ProjectService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, cancellationToken) ? Results.NoContent() : Results.NotFound());
+projects.MapGet("/{projectId:guid}/usage", async (Guid projectId, DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
+{
+    var metrics = await service.ListProjectAsync(projectId, from, to, ct);
+    return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
+});
 
 var agents = projects.MapGroup("/{projectId:guid}/agents");
 agents.MapGet("/", async (Guid projectId, AgentService service, CancellationToken cancellationToken) =>
@@ -125,6 +140,11 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 
 agents.MapDelete("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, agentId, cancellationToken) ? Results.NoContent() : Results.NotFound());
+agents.MapGet("/{agentId:guid}/usage", async (Guid projectId, Guid agentId, DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
+{
+    var metrics = await service.ListAgentAsync(projectId, agentId, from, to, ct);
+    return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
+});
 
 agents.MapPost("/{agentId:guid}/instances", async (Guid projectId, Guid agentId, TriggerAgentInstanceRequest request, AgentInstanceService service, CancellationToken ct) =>
 {
