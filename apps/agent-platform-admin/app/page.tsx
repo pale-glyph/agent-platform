@@ -410,20 +410,27 @@ export default function HomePage() {
     void loadTimeline();
   }, [activeInstanceId, jimProjectId]);
   useEffect(() => {
-    if (tab !== "webhooks" || !selectedProjectId) return;
-    const interval = window.setInterval(() => {
-      void loadWebhooks();
-    }, 1_000);
-    return () => window.clearInterval(interval);
-  }, [selectedProjectId, tab]);
-  useEffect(() => {
-    if (page !== "chat" || !activeInstanceId) return;
-    const interval = window.setInterval(() => {
-      void loadTimeline();
-      void loadJimInstances();
-    }, 1_000);
-    return () => window.clearInterval(interval);
-  }, [page, activeInstanceId, jimProjectId]);
+    const stream = new EventSource("/api/agent-events");
+    const refresh = (event: MessageEvent<string>) => {
+      const webhook = JSON.parse(event.data) as {
+        projectId: string;
+        data: { instanceId?: string };
+      };
+      if (webhook.projectId === selectedProjectId && tab === "webhooks")
+        void loadWebhooks();
+      if (
+        page === "chat" &&
+        webhook.projectId === jimProjectId &&
+        (!webhook.data.instanceId || webhook.data.instanceId === activeInstanceId)
+      ) {
+        void loadTimeline();
+        void loadJimInstances();
+      }
+    };
+    stream.addEventListener("agent.message", refresh);
+    stream.addEventListener("agent.tool_call", refresh);
+    return () => stream.close();
+  }, [activeInstanceId, jimProjectId, page, selectedProjectId, tab]);
   const loadLlmConfigurations = async () => {
     try {
       const response = await fetch("/api/llm-configurations/");
@@ -1469,7 +1476,8 @@ export default function HomePage() {
                       </button>
                     </div>
                     <p className="webhook-security-note">
-                      Deliveries use HTTPS and include an HMAC-SHA256 signature
+                      Deliveries use HTTPS, except for the internal admin service,
+                      and include an HMAC-SHA256 signature
                       in <code>X-Agent-Platform-Signature</code>. Use the event
                       ID to handle retries idempotently.
                     </p>
@@ -1487,11 +1495,7 @@ export default function HomePage() {
                         />
                         <div className="webhook-url-label">
                           <label htmlFor="webhook-url">
-                            HTTPS endpoint{" "}
-                            <small>
-                              (loopback HTTP is allowed for the built-in
-                              receiver)
-                            </small>
+                            HTTPS endpoint <small>(HTTP is allowed for the internal admin service)</small>
                           </label>
                           <button
                             className="text-button"
