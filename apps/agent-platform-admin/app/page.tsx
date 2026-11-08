@@ -100,15 +100,22 @@ export default function HomePage() {
   const loadWebhooks = async () => {
     if (!selectedProjectId) { setWebhooks([]); setWebhookDeliveries([]); setWebhookMetrics({ sent: 0, failed: 0, pending: 0, attempts: 0 }); return; }
     try {
-      const [webhooksResponse, metricsResponse, deliveriesResponse] = await Promise.all([
-        fetch(`/api/projects/${selectedProjectId}/webhooks/`),
-        fetch(`/api/projects/${selectedProjectId}/webhooks/metrics`),
-        fetch(`/api/projects/${selectedProjectId}/webhooks/deliveries`),
-      ]);
-      if (!webhooksResponse.ok || !metricsResponse.ok || !deliveriesResponse.ok) throw new Error("Webhook data could not be loaded.");
-      const [items, metrics, deliveries] = await Promise.all([webhooksResponse.json(), metricsResponse.json(), deliveriesResponse.json()]) as [Webhook[], WebhookMetrics, WebhookDelivery[]];
-      setWebhooks(items); setWebhookMetrics(metrics); setWebhookDeliveries(deliveries);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Webhook data could not be loaded."); }
+      const response = await fetch(`/api/projects/${selectedProjectId}/webhooks/`);
+      if (!response.ok) throw new Error(await readError(response));
+      setWebhooks(await response.json() as Webhook[]);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Webhook list: ${error.message}` : "Webhook list could not be loaded.");
+      return;
+    }
+
+    const [metricsResult, deliveriesResult] = await Promise.allSettled([
+      fetch(`/api/projects/${selectedProjectId}/webhooks/metrics`),
+      fetch(`/api/projects/${selectedProjectId}/webhooks/deliveries`),
+    ]);
+    if (metricsResult.status === "fulfilled" && metricsResult.value.ok) setWebhookMetrics(await metricsResult.value.json() as WebhookMetrics);
+    else setMessage("Webhook list loaded, but delivery metrics could not be refreshed.");
+    if (deliveriesResult.status === "fulfilled" && deliveriesResult.value.ok) setWebhookDeliveries(await deliveriesResult.value.json() as WebhookDelivery[]);
+    else setMessage("Webhook list loaded, but delivery messages could not be refreshed.");
   };
 
   useEffect(() => { void loadProjects(); }, []);
@@ -200,7 +207,11 @@ export default function HomePage() {
       body: JSON.stringify({ name: webhookName, endpointUrl: webhookUrl, secret: webhookSecret || undefined, events: webhookEvents, enabled: editingWebhook?.isEnabled ?? true }),
     });
     if (!response.ok) { setMessage(await readError(response)); setIsSaving(false); return; }
-    setIsSaving(false); setIsWebhookFormOpen(false); await loadWebhooks();
+    const savedWebhook = await response.json() as Webhook;
+    setWebhooks((items) => editingWebhook
+      ? items.map((item) => item.id === savedWebhook.id ? savedWebhook : item)
+      : [...items, savedWebhook].sort((a, b) => a.name.localeCompare(b.name)));
+    setIsSaving(false); setIsWebhookFormOpen(false); setMessage(`${savedWebhook.name} saved.`); await loadWebhooks();
   };
   const deleteWebhook = async (webhook: Webhook) => {
     if (!selectedProjectId || !window.confirm(`Disable “${webhook.name}” and cancel its pending deliveries?`)) return;
