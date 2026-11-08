@@ -413,14 +413,15 @@ export default function HomePage() {
     if (tab !== "webhooks" || !selectedProjectId) return;
     const interval = window.setInterval(() => {
       void loadWebhooks();
-    }, 10_000);
+    }, 1_000);
     return () => window.clearInterval(interval);
   }, [selectedProjectId, tab]);
   useEffect(() => {
     if (page !== "chat" || !activeInstanceId) return;
     const interval = window.setInterval(() => {
       void loadTimeline();
-    }, 5_000);
+      void loadJimInstances();
+    }, 1_000);
     return () => window.clearInterval(interval);
   }, [page, activeInstanceId, jimProjectId]);
   const loadLlmConfigurations = async () => {

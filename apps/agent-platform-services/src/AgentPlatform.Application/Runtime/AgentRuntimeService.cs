@@ -1,6 +1,7 @@
 using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Application.Mcp;
 using AgentPlatform.Domain.Instances;
+using AgentPlatform.Domain.Webhooks;
 using System.Text.Json;
 
 namespace AgentPlatform.Application.Runtime;
@@ -12,6 +13,7 @@ public sealed class AgentRuntimeService(
     ILlmConfigurationRepository llmConfigurations,
     IMcpServerRepository mcpServers,
     McpServerService mcpServerService,
+    IWebhookEventPublisher webhookEvents,
     IOpenAiCompatibleClient llm,
     IMcpToolClient mcpTools,
     TimeProvider timeProvider)
@@ -53,6 +55,7 @@ public sealed class AgentRuntimeService(
                 if (string.IsNullOrWhiteSpace(content)) throw new InvalidOperationException("The model returned neither content nor tool calls.");
                 var response = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, timeProvider.GetUtcNow());
                 await instances.AddEntryAsync(response, cancellationToken);
+                await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentMessage, ToWebhookPayload(response), cancellationToken);
                 instance.Complete();
                 await instances.SaveChangesAsync(cancellationToken);
                 return true;
@@ -68,6 +71,7 @@ public sealed class AgentRuntimeService(
                 var result = await mcpTools.CallAsync(server, grant.ToolName, call.ArgumentsJson, cancellationToken);
                 var entry = AgentExecutionEntry.ToolCall(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), call.Name, call.ArgumentsJson, result, timeProvider.GetUtcNow());
                 await instances.AddEntryAsync(entry, cancellationToken);
+                await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentToolCall, ToWebhookPayload(entry), cancellationToken);
                 await instances.SaveChangesAsync(cancellationToken);
                 messages.Add(new RuntimeChatMessage("tool", result, call.Id));
             }
@@ -113,4 +117,20 @@ public sealed class AgentRuntimeService(
         }
         return definitions;
     }
+
+    private static object ToWebhookPayload(AgentExecutionEntry entry) => new
+    {
+        entry.Id,
+        entry.InstanceId,
+        entry.SequenceNumber,
+        entry.Type,
+        entry.Role,
+        entry.Delivery,
+        entry.MessageStatus,
+        entry.Content,
+        entry.ToolName,
+        entry.ToolArguments,
+        entry.ToolResult,
+        entry.CreatedAt,
+    };
 }
