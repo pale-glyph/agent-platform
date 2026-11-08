@@ -152,6 +152,7 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
   .agent-project-picker { align-items: stretch; flex-direction: column; }
   .agent-project-picker select { min-width: 0; width: 100%; }
   .project-details { grid-template-columns: 1fr; }
+  .usage-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .project-form > div { align-items: stretch; }
   .project-form input { flex-basis: 100%; }
   main { padding-top: 2.5rem; }
@@ -177,6 +178,21 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .tools-table pre { background: #0e141e; border: 1px solid #2a3443; border-radius: 0.45rem; color: #d6e4f5; font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; max-height: 15rem; min-width: 20rem; overflow: auto; padding: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tools-modal-footer { border-top: 1px solid #2a3443; display: flex; justify-content: flex-end; padding: 0.75rem 1.25rem; }
 .webhook-metrics { border-bottom: 1px solid #2a3443; display: grid; gap: 1px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.usage-page { margin-top: 2rem; }
+.usage-actions { align-items: center; display: flex; justify-content: flex-end; min-height: 2.5rem; }
+.usage-actions span { color: #8491a3; font-size: 0.78rem; margin-right: 0.6rem; }
+.usage-summary, .usage-breakdown { margin-top: 1.5rem; }
+.usage-metrics { display: grid; gap: 1px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.usage-metrics > div { background: #111722; padding: 1rem 1.4rem; }
+.usage-metrics dt { color: #8491a3; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.usage-metrics dd { color: #edf1f8; font-size: 1.35rem; font-weight: 700; margin: 0.42rem 0 0; }
+.usage-table-wrap { overflow: auto; }
+.usage-table { border-collapse: collapse; min-width: 44rem; text-align: left; width: 100%; }
+.usage-table caption { color: #8491a3; font-size: 0.76rem; padding: 1rem 1.4rem 0.45rem; text-align: left; }
+.usage-table th, .usage-table td { border-top: 1px solid #252f3e; padding: 0.75rem 1rem; vertical-align: middle; }
+.usage-table thead th { background: #111722; color: #8491a3; font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.usage-table tbody th { color: #edf1f8; font-size: 0.8rem; font-weight: 650; }
+.usage-table td { color: #b6c0ce; font-size: 0.8rem; }
 .webhook-metrics > div { background: #111722; display: grid; gap: 0.45rem; padding: 1.1rem 1.4rem; }
 .webhook-metrics span { color: #8491a3; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
 .webhook-metrics strong { color: #edf1f8; font-size: 1.45rem; }
