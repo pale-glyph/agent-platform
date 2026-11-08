@@ -69,6 +69,14 @@ h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); letter-spacing: -0.045em; line-heigh
 .project-list li > div:nth-child(2) { display: grid; gap: 0.18rem; }
 .project-list small { color: #8491a3; font-size: 0.75rem; }
 .project-actions { display: flex; gap: 0.25rem; margin-left: auto; }
+.agent-panel { margin-top: 1.5rem; }
+.agent-project-picker { align-items: center; border-bottom: 1px solid #2a3443; display: flex; gap: 0.75rem; padding: 1rem 1.5rem; }
+.agent-project-picker label, .agent-form label { color: #c9d2df; font-size: 0.8rem; font-weight: 700; }
+.agent-project-picker select, .agent-form input, .agent-form textarea { background: #0e141e; border: 1px solid #3b4657; border-radius: 0.45rem; color: #f4f7fb; padding: 0.6rem 0.75rem; }
+.agent-project-picker select { min-width: 15rem; }
+.agent-form { display: grid; gap: 0.45rem; border-bottom: 1px solid #2a3443; padding: 1.2rem 1.5rem; }
+.agent-form textarea { min-height: 5.5rem; resize: vertical; }
+.agent-form > div { display: flex; gap: 0.6rem; margin-top: 0.35rem; }
 .resource-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: clamp(2.5rem, 6vw, 4.5rem); }
 article { align-items: center; background: #151c27; border: 1px solid #2a3443; border-radius: 0.8rem; display: flex; gap: 1rem; min-height: 7.4rem; padding: 1.3rem; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
 article:hover { background: #192231; border-color: #41516a; transform: translateY(-2px); }
@@ -107,6 +115,9 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
   .heading-action { display: none; }
   .project-panel { margin-left: -0.1rem; margin-right: -0.1rem; }
   .panel-heading, .project-form, .project-list li { padding-left: 1rem; padding-right: 1rem; }
+  .agent-project-picker, .agent-form { padding-left: 1rem; padding-right: 1rem; }
+  .agent-project-picker { align-items: stretch; flex-direction: column; }
+  .agent-project-picker select { min-width: 0; width: 100%; }
   .project-form > div { align-items: stretch; }
   .project-form input { flex-basis: 100%; }
   main { padding-top: 2.5rem; }
