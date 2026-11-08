@@ -1,4 +1,5 @@
 using AgentPlatform.Domain.Agents;
+using AgentPlatform.Domain.Llm;
 using AgentPlatform.Domain.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 {
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
+    public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,5 +31,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         agent.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
         agent.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
         agent.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+
+        var llm = modelBuilder.Entity<LlmConfiguration>();
+        llm.ToTable("llm_configurations"); llm.HasKey(item => item.Id);
+        llm.Property(item => item.Id).HasColumnName("id"); llm.Property(item => item.Name).HasColumnName("name").HasMaxLength(LlmConfiguration.MaximumNameLength).IsRequired();
+        llm.Property(item => item.ProviderUrl).HasColumnName("provider_url").HasMaxLength(LlmConfiguration.MaximumProviderUrlLength).IsRequired();
+        llm.Property(item => item.ModelName).HasColumnName("model_name").HasMaxLength(LlmConfiguration.MaximumModelNameLength).IsRequired();
+        llm.Property(item => item.ApiKey).HasColumnName("api_key").HasMaxLength(LlmConfiguration.MaximumApiKeyLength).IsRequired(); llm.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired(); llm.HasIndex(item => item.Name).IsUnique();
     }
 }

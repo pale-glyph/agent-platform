@@ -1,4 +1,5 @@
 using AgentPlatform.Application.Agents;
+using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
@@ -11,6 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("Platform")
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHealthChecks();
 
@@ -23,6 +25,12 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.MapHealthChecks("/health");
+
+var llmConfigurations = app.MapGroup("/api/llm-configurations");
+llmConfigurations.MapGet("/", async (LlmConfigurationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct)));
+llmConfigurations.MapPost("/", async (LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.CreateAsync(request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey ?? "", ct); return Results.Created($"/api/llm-configurations/{item.Id}", item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
+llmConfigurations.MapPut("/{id:guid}", async (Guid id, LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.UpdateAsync(id, request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey, ct); return item is null ? Results.NotFound() : Results.Ok(item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
+llmConfigurations.MapDelete("/{id:guid}", async (Guid id, LlmConfigurationService service, CancellationToken ct) => await service.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
 
 var projects = app.MapGroup("/api/projects");
 projects.MapGet("/", async (ProjectService service, CancellationToken cancellationToken) =>
@@ -103,6 +111,7 @@ app.Run();
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt);
+public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);
