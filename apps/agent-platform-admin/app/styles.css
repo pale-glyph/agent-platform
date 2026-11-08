@@ -44,6 +44,31 @@ h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); letter-spacing: -0.045em; line-heigh
 .heading-action { background: transparent; border-color: #3b4657; color: #c1cad8; flex: 0 0 auto; }
 .heading-action:hover, .heading-action:focus-visible { border-color: #95e8b4; color: #a9efc2; outline: none; }
 .heading-action span { margin-left: 0.35rem; }
+.project-panel { background: #151c27; border: 1px solid #2a3443; border-radius: 0.8rem; margin-top: clamp(2.5rem, 6vw, 4.5rem); overflow: hidden; }
+.panel-heading { align-items: center; border-bottom: 1px solid #2a3443; display: flex; justify-content: space-between; padding: 1.35rem 1.5rem; }
+.panel-heading .eyebrow { margin-bottom: 0.35rem; }
+.panel-heading h2 { font-size: 1.15rem; margin: 0; }
+.panel-heading > span { background: #202b3b; border-radius: 999px; color: #aab5c8; font-size: 0.74rem; font-weight: 700; padding: 0.32rem 0.6rem; }
+.status-message { background: #452532; border: 1px solid #9d4057; border-radius: 0.5rem; color: #ffd7df; margin: 1rem 1.5rem 0; padding: 0.75rem 0.9rem; }
+.project-form { border-bottom: 1px solid #2a3443; display: grid; gap: 0.45rem; padding: 1.2rem 1.5rem; }
+.project-form label { color: #c9d2df; font-size: 0.8rem; font-weight: 700; }
+.project-form > div { align-items: center; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.project-form input { background: #0e141e; border: 1px solid #3b4657; border-radius: 0.45rem; color: #f4f7fb; flex: 1 1 16rem; min-height: 2.55rem; padding: 0 0.75rem; }
+.project-form input:focus { border-color: #95e8b4; outline: 2px solid rgb(149 232 180 / 18%); }
+.new-button:disabled { cursor: wait; opacity: 0.65; }
+.text-button, .project-actions button { background: transparent; border: 0; border-radius: 0.4rem; color: #aab5c8; font-size: 0.8rem; font-weight: 650; padding: 0.5rem 0.65rem; }
+.text-button:hover, .text-button:focus-visible, .project-actions button:hover, .project-actions button:focus-visible { background: #263142; color: #f4f7fb; outline: none; }
+.project-actions button:last-child:hover, .project-actions button:last-child:focus-visible { background: #482634; color: #ffb9c6; }
+.empty-state { align-items: center; color: #93a0b3; display: flex; flex-direction: column; gap: 0.75rem; min-height: 12rem; justify-content: center; padding: 1.5rem; text-align: center; }
+.empty-state strong { color: #e7edf6; font-size: 1rem; }
+.empty-state span { max-width: 25rem; }
+.project-list { margin: 0; padding: 0; }
+.project-list li { align-items: center; border-bottom: 1px solid #252f3e; display: flex; gap: 0.85rem; min-height: 4.7rem; padding: 0.8rem 1.5rem; }
+.project-list li:last-child { border-bottom: 0; }
+.project-badge { align-items: center; background: #263a31; border-radius: 0.45rem; color: #a9efc2; display: inline-flex; font-size: 0.78rem; font-weight: 800; height: 2.1rem; justify-content: center; width: 2.1rem; }
+.project-list li > div:nth-child(2) { display: grid; gap: 0.18rem; }
+.project-list small { color: #8491a3; font-size: 0.75rem; }
+.project-actions { display: flex; gap: 0.25rem; margin-left: auto; }
 .resource-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: clamp(2.5rem, 6vw, 4.5rem); }
 article { align-items: center; background: #151c27; border: 1px solid #2a3443; border-radius: 0.8rem; display: flex; gap: 1rem; min-height: 7.4rem; padding: 1.3rem; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
 article:hover { background: #192231; border-color: #41516a; transform: translateY(-2px); }
@@ -80,6 +105,10 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
   .new-button { padding: 0.58rem 0.7rem; }
   .page-heading { align-items: start; flex-direction: column; }
   .heading-action { display: none; }
+  .project-panel { margin-left: -0.1rem; margin-right: -0.1rem; }
+  .panel-heading, .project-form, .project-list li { padding-left: 1rem; padding-right: 1rem; }
+  .project-form > div { align-items: stretch; }
+  .project-form input { flex-basis: 100%; }
   main { padding-top: 2.5rem; }
   .resource-grid { grid-template-columns: 1fr; }
 }

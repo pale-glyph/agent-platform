@@ -11,6 +11,8 @@ const navigation = [
   { label: "Event streams", icon: "pulse" },
 ] as const;
 
+type Project = { id: string; name: string; createdAt: string };
+
 function Icon({ name }: { name: (typeof navigation)[number]["icon"] | "menu" | "close" }) {
   const common = { "aria-hidden": true, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8 };
 
@@ -27,6 +29,13 @@ function Icon({ name }: { name: (typeof navigation)[number]["icon"] | "menu" | "
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [name, setName] = useState("");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -38,6 +47,77 @@ export default function HomePage() {
   }, []);
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  const loadProjects = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/projects/");
+      if (!response.ok) throw new Error("Projects could not be loaded.");
+      setProjects(await response.json() as Project[]);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Projects could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadProjects(); }, []);
+
+  const openCreateForm = () => {
+    setEditingProject(null);
+    setName("");
+    setError(null);
+    setIsFormOpen(true);
+  };
+
+  const openEditForm = (project: Project) => {
+    setEditingProject(project);
+    setName(project.name);
+    setError(null);
+    setIsFormOpen(true);
+  };
+
+  const readError = async (response: Response) => {
+    const body = await response.json().catch(() => null) as { errors?: Record<string, string[]>; title?: string } | null;
+    return body?.errors?.name?.[0] ?? body?.title ?? "The project could not be saved.";
+  };
+
+  const saveProject = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    const response = await fetch(editingProject ? `/api/projects/${editingProject.id}` : "/api/projects/", {
+      method: editingProject ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!response.ok) {
+      setError(await readError(response));
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsFormOpen(false);
+    setIsSubmitting(false);
+    await loadProjects();
+  };
+
+  const deleteProject = async (project: Project) => {
+    if (!window.confirm(`Delete “${project.name}”? This cannot be undone.`)) return;
+
+    setError(null);
+    const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setError("The project could not be deleted.");
+      return;
+    }
+
+    await loadProjects();
+  };
 
   return (
     <div className={`app-shell ${isMenuOpen ? "menu-open" : ""} ${isCollapsed ? "menu-collapsed" : ""}`}>
@@ -78,7 +158,7 @@ export default function HomePage() {
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setIsMenuOpen(true)} aria-label="Open navigation" aria-expanded={isMenuOpen}><Icon name="menu" /></button>
           <div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>Overview</strong></div>
-          <button className="new-button" type="button">New project</button>
+          <button className="new-button" type="button" onClick={openCreateForm}>New project</button>
         </header>
 
         <main id="overview">
@@ -88,17 +168,23 @@ export default function HomePage() {
               <h1>Good afternoon, operator.</h1>
               <p>Manage projects, agent definitions, tool access, and active instances from one workspace.</p>
             </div>
-            <button className="heading-action" type="button">View activity <span aria-hidden="true">→</span></button>
+            <button className="heading-action" type="button" onClick={openCreateForm}>Create project <span aria-hidden="true">→</span></button>
           </div>
 
-          <section className="resource-grid" aria-label="Platform resources">
-            {navigation.slice(1).map((item) => (
-              <article key={item.label} id={item.label.toLowerCase().replaceAll(" ", "-")}>
-                <span className="resource-icon"><Icon name={item.icon} /></span>
-                <div><h2>{item.label}</h2><p>Coming soon</p></div>
-                <span className="card-arrow" aria-hidden="true">→</span>
-              </article>
-            ))}
+          <section className="project-panel" id="projects" aria-labelledby="projects-heading">
+            <div className="panel-heading"><div><p className="eyebrow">Projects</p><h2 id="projects-heading">Your projects</h2></div><span>{projects.length} total</span></div>
+            {error && <p className="status-message" role="alert">{error}</p>}
+            {isFormOpen && (
+              <form className="project-form" onSubmit={saveProject}>
+                <label htmlFor="project-name">Project name</label>
+                <div><input id="project-name" value={name} maxLength={200} autoFocus onChange={(event) => setName(event.target.value)} placeholder="e.g. Customer support agent" disabled={isSubmitting} /><button className="new-button" disabled={isSubmitting}>{isSubmitting ? "Saving…" : editingProject ? "Save changes" : "Create project"}</button><button className="text-button" type="button" onClick={() => setIsFormOpen(false)} disabled={isSubmitting}>Cancel</button></div>
+              </form>
+            )}
+            {isLoading ? <p className="empty-state" role="status">Loading projects…</p> : projects.length === 0 ? <div className="empty-state"><strong>No projects yet</strong><span>Create a project to begin defining agents and their tools.</span><button className="new-button" type="button" onClick={openCreateForm}>Create your first project</button></div> : (
+              <ul className="project-list">
+                {projects.map((project) => <li key={project.id}><span className="project-badge">{project.name.slice(0, 1).toUpperCase()}</span><div><strong>{project.name}</strong><small>Created {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(project.createdAt))}</small></div><div className="project-actions"><button type="button" onClick={() => openEditForm(project)}>Edit</button><button type="button" onClick={() => void deleteProject(project)}>Delete</button></div></li>)}
+              </ul>
+            )}
           </section>
         </main>
       </div>
