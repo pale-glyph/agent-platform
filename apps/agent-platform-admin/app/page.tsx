@@ -6,6 +6,9 @@ import { AppSidebar } from "./components/app-sidebar";
 import { ProjectCreateForm } from "./components/project-create-form";
 import { ConversationPage } from "./components/pages/conversation-page";
 import { LlmConfigurationsPage } from "./components/pages/llm-configurations-page";
+import { ProjectWorkspacePage } from "./components/pages/project-workspace-page";
+import { AgentInstancesPanel } from "./components/agent-instances-panel";
+import { ProjectOverview } from "./components/project-overview";
 import type {
   AdminPage,
   Agent,
@@ -936,56 +939,9 @@ export default function HomePage() {
                 </span>
               </div>
             ) : (
-              <>
-                <div className="project-heading">
-                  <p className="eyebrow">Project</p>
-                  <h1>{selectedProject.name}</h1>
-                  <p>Configure everything that belongs to this project.</p>
-                </div>
-                <div
-                  className="project-tabs"
-                  role="tablist"
-                  aria-label="Project sections"
-                >
-                  {tabs.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === item.id}
-                      className={tab === item.id ? "active" : ""}
-                      onClick={() => setTab(item.id)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
+              <ProjectWorkspacePage project={selectedProject} tab={tab} tabs={tabs} onTabChange={setTab}>
                 {tab === "overview" && (
-                  <section className="project-panel tab-panel">
-                    <h2>Overview</h2>
-                    <dl className="project-details">
-                      <div>
-                        <dt>Project name</dt>
-                        <dd>{selectedProject.name}</dd>
-                      </div>
-                      <div>
-                        <dt>Agent definitions</dt>
-                        <dd>{agents.length}</dd>
-                      </div>
-                      <div>
-                        <dt>MCP servers</dt>
-                        <dd>{mcpServers.length}</dd>
-                      </div>
-                      <div>
-                        <dt>Created</dt>
-                        <dd>
-                          {new Intl.DateTimeFormat(undefined, {
-                            dateStyle: "medium",
-                          }).format(new Date(selectedProject.createdAt))}
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
+                  <ProjectOverview project={selectedProject} agentCount={agents.length} serverCount={mcpServers.length} />
                 )}
                 {tab === "agents" && (
                   <section className="project-panel tab-panel">
@@ -1590,25 +1546,8 @@ export default function HomePage() {
                     </section>
                   </section>
                 )}
-                {tab === "instances" && (
-                  <section className="project-panel tab-panel">
-                    <div className="panel-heading">
-                      <div>
-                        <p className="eyebrow">Execution</p>
-                        <h2>Agent instances</h2>
-                      </div>
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={() => void loadAgentInstances()}
-                      >
-                        Refresh
-                      </button>
-                    </div>
-                    {agentInstances.length === 0 ? <div className="empty-state compact-empty"><strong>No agent instances</strong><span>Triggered agent executions for this project will appear here.</span></div> : <div className="instance-table-wrap"><table className="instance-table"><thead><tr><th>Agent</th><th>Status</th><th>Queued message</th><th>Cancellation</th><th>Started</th></tr></thead><tbody>{agentInstances.map((instance) => <tr key={instance.id}><th>{agents.find((agent) => agent.id === instance.agentId)?.name ?? "Deleted agent"}</th><td>{instance.status}</td><td>{instance.hasPendingQueuedMessage ? "Pending" : "—"}</td><td>{instance.cancellationRequestedAt ? "Requested" : "—"}</td><td>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(instance.createdAt))}</td></tr>)}</tbody></table></div>}
-                  </section>
-                )}
-              </>
+                {tab === "instances" && <AgentInstancesPanel instances={agentInstances} agents={agents} onRefresh={() => void loadAgentInstances()} />}
+              </ProjectWorkspacePage>
             ))}
           {page === "chat" && <ConversationPage agentId={jimAgentId} projectId={jimProjectId} instances={jimInstances} activeInstanceId={activeInstanceId} timeline={timeline} initialPrompt={initialPrompt} outgoingMessage={outgoingMessage} messageDelivery={messageDelivery} isSending={isSendingMessage} onInitialPromptChange={setInitialPrompt} onOutgoingMessageChange={setOutgoingMessage} onMessageDeliveryChange={setMessageDelivery} onStart={startConversation} onSend={sendConversationMessage} onSelectInstance={setActiveInstanceId} onDeleteInstance={(instance) => void deleteConversation(instance)} />}
           {page === "llm" && <LlmConfigurationsPage configurations={llmConfigurations} editing={editingLlm} isFormOpen={isLlmFormOpen} isSaving={isSaving} name={llmName} providerUrl={providerUrl} modelName={modelName} apiKey={apiKey} onOpenForm={() => openLlmForm()} onSubmit={saveLlm} onCancel={() => setIsLlmFormOpen(false)} onNameChange={setLlmName} onProviderUrlChange={setProviderUrl} onModelNameChange={setModelName} onApiKeyChange={setApiKey} onEdit={openLlmForm} onDelete={(item) => void deleteLlm(item)} />}
