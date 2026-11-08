@@ -1,6 +1,8 @@
 using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Infrastructure.Persistence;
 using AgentPlatform.Infrastructure.Mcp;
+using AgentPlatform.Infrastructure.Runtime;
+using AgentPlatform.Application.Runtime;
 using AgentPlatform.Infrastructure.Webhooks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,9 @@ public static class DependencyInjection
         services.AddScoped<IMcpServerRepository, EfMcpServerRepository>();
         services.AddHttpClient("mcp");
         services.AddScoped<IMcpToolDefinitionClient, HttpMcpToolDefinitionClient>();
+        services.AddHttpClient("openai-compatible", client => client.Timeout = TimeSpan.FromMinutes(2));
+        services.AddScoped<IOpenAiCompatibleClient, OpenAiCompatibleClient>();
+        services.AddScoped<IMcpToolClient, HttpMcpToolClient>();
         services.AddScoped<IWebhookRepository, EfWebhookRepository>();
         services.AddScoped<IWebhookEventPublisher, EfWebhookEventPublisher>();
         services.AddScoped<IWebhookDeliveryStore, EfWebhookDeliveryStore>();

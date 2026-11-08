@@ -22,6 +22,17 @@ public sealed class AgentInstance
 
     public long AllocateSequenceNumber() => NextSequenceNumber++;
     public void Start() => Status = AgentInstanceStatus.Running;
+    public void Complete()
+    {
+        if (Status != AgentInstanceStatus.Running) throw new InvalidOperationException("Only a running instance can complete.");
+        Status = AgentInstanceStatus.Completed;
+    }
+
+    public void Fail()
+    {
+        if (Status == AgentInstanceStatus.Completed) throw new InvalidOperationException("A completed instance cannot fail.");
+        Status = AgentInstanceStatus.Failed;
+    }
 
     public void QueueMessage(Guid messageId)
     {
