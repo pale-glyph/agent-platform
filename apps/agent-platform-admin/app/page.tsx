@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type Project = { id: string; name: string; createdAt: string };
 type Agent = { id: string; projectId: string; name: string; description: string; systemPrompt: string; createdAt: string };
+type LlmConfiguration = { id: string; name: string; providerUrl: string; modelName: string; createdAt: string };
 type Tab = "overview" | "agents" | "servers" | "instances";
 
 const tabs: { id: Tab; label: string }[] = [
@@ -25,6 +26,13 @@ export default function HomePage() {
   const [agentName, setAgentName] = useState("");
   const [agentDescription, setAgentDescription] = useState("");
   const [agentPrompt, setAgentPrompt] = useState("");
+  const [llmConfigurations, setLlmConfigurations] = useState<LlmConfiguration[]>([]);
+  const [isLlmFormOpen, setIsLlmFormOpen] = useState(false);
+  const [editingLlm, setEditingLlm] = useState<LlmConfiguration | null>(null);
+  const [llmName, setLlmName] = useState("");
+  const [providerUrl, setProviderUrl] = useState("");
+  const [modelName, setModelName] = useState("");
+  const [apiKey, setApiKey] = useState("");
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId);
 
@@ -51,6 +59,8 @@ export default function HomePage() {
 
   useEffect(() => { void loadProjects(); }, []);
   useEffect(() => { void loadAgents(); }, [selectedProjectId]);
+  const loadLlmConfigurations = async () => { try { const response = await fetch("/api/llm-configurations/"); if (!response.ok) throw new Error("LLM configurations could not be loaded."); setLlmConfigurations(await response.json() as LlmConfiguration[]); } catch (error) { setMessage(error instanceof Error ? error.message : "LLM configurations could not be loaded."); } };
+  useEffect(() => { void loadLlmConfigurations(); }, []);
 
   const selectProject = (projectId: string) => { setSelectedProjectId(projectId); setTab("overview"); setMessage(null); };
   const readError = async (response: Response) => {
@@ -85,10 +95,14 @@ export default function HomePage() {
     await loadAgents();
   };
 
+  const openLlmForm = (item?: LlmConfiguration) => { setEditingLlm(item ?? null); setLlmName(item?.name ?? ""); setProviderUrl(item?.providerUrl ?? ""); setModelName(item?.modelName ?? ""); setApiKey(""); setIsLlmFormOpen(true); };
+  const saveLlm = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); setIsSaving(true); const response = await fetch(editingLlm ? `/api/llm-configurations/${editingLlm.id}` : "/api/llm-configurations/", { method: editingLlm ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: llmName, providerUrl, modelName, apiKey: apiKey || undefined }) }); if (!response.ok) { setMessage(await readError(response)); setIsSaving(false); return; } setIsSaving(false); setIsLlmFormOpen(false); await loadLlmConfigurations(); };
+  const deleteLlm = async (item: LlmConfiguration) => { if (!window.confirm(`Delete “${item.name}”? This cannot be undone.`)) return; const response = await fetch(`/api/llm-configurations/${item.id}`, { method: "DELETE" }); if (!response.ok) { setMessage("The LLM configuration could not be deleted."); return; } await loadLlmConfigurations(); };
+
   return <div className="app-shell">
     <aside className="sidebar" aria-label="Primary navigation">
       <div className="sidebar-header"><a className="brand" href="#workspace"><span className="brand-mark">AP</span><span className="brand-name">Agent Platform</span></a></div>
-      <nav><p className="nav-label">Workspace</p><a className="active" href="#workspace"><span className="nav-icon">▦</span><span>Projects</span></a><a href="#event-streams"><span className="nav-icon">⌁</span><span>Event streams</span></a></nav>
+      <nav><p className="nav-label">Workspace</p><a className="active" href="#workspace"><span className="nav-icon">▦</span><span>Projects</span></a><a href="#llm-configurations"><span className="nav-icon">✦</span><span>LLM configurations</span></a><a href="#event-streams"><span className="nav-icon">⌁</span><span>Event streams</span></a></nav>
       <section className="project-nav" aria-labelledby="project-nav-title"><div><p className="nav-label" id="project-nav-title">Projects</p><button className="small-add" type="button" onClick={() => setIsProjectFormOpen(true)} aria-label="Create project">+</button></div>
         {isLoading ? <p className="nav-loading">Loading…</p> : projects.map((project) => <button key={project.id} className={project.id === selectedProjectId ? "project-nav-item active" : "project-nav-item"} onClick={() => selectProject(project.id)}><span>{project.name.slice(0, 1).toUpperCase()}</span><strong>{project.name}</strong></button>)}
       </section>
@@ -105,7 +119,9 @@ export default function HomePage() {
           {tab === "agents" && <section className="project-panel tab-panel"><div className="panel-heading"><div><p className="eyebrow">Agents</p><h2>Agent definitions</h2></div><button className="new-button" type="button" onClick={() => openAgentForm()}>New agent</button></div>{isAgentFormOpen && <form className="agent-form" onSubmit={saveAgent}><label htmlFor="agent-name">Name</label><input id="agent-name" value={agentName} maxLength={200} onChange={(event) => setAgentName(event.target.value)} required /><label htmlFor="agent-description">Description</label><textarea id="agent-description" value={agentDescription} maxLength={2000} onChange={(event) => setAgentDescription(event.target.value)} required /><label htmlFor="agent-prompt">System prompt</label><textarea id="agent-prompt" value={agentPrompt} maxLength={20000} onChange={(event) => setAgentPrompt(event.target.value)} required /><div><button className="new-button" disabled={isSaving}>{isSaving ? "Saving…" : editingAgent ? "Save changes" : "Create agent"}</button><button className="text-button" type="button" onClick={() => setIsAgentFormOpen(false)}>Cancel</button></div></form>}{agents.length === 0 ? <div className="empty-state"><strong>No agents yet</strong><span>Create an agent definition for {selectedProject.name}.</span></div> : <ul className="project-list">{agents.map((agent) => <li key={agent.id}><span className="project-badge">{agent.name.slice(0, 1).toUpperCase()}</span><div><strong>{agent.name}</strong><small>{agent.description}</small></div><div className="project-actions"><button onClick={() => openAgentForm(agent)}>Edit</button><button onClick={() => void deleteAgent(agent)}>Delete</button></div></li>)}</ul>}</section>}
           {tab === "servers" && <ComingSoon title="MCP servers" text="Connect project-scoped MCP servers and explicitly grant their tools to agent versions." />}
           {tab === "instances" && <ComingSoon title="Instances" text="View the project’s stateful agent instances and their durable conversations." />}
-        </>}</main>
+        </>}
+        <section className="project-panel tab-panel" id="llm-configurations"><div className="panel-heading"><div><p className="eyebrow">Platform</p><h2>LLM configurations</h2></div><button className="new-button" type="button" onClick={() => openLlmForm()}>New configuration</button></div>{isLlmFormOpen && <form className="agent-form" onSubmit={saveLlm}><label htmlFor="llm-name">Name</label><input id="llm-name" value={llmName} onChange={(event) => setLlmName(event.target.value)} required /><label htmlFor="provider-url">Provider URL</label><input id="provider-url" type="url" value={providerUrl} onChange={(event) => setProviderUrl(event.target.value)} required /><label htmlFor="model-name">Model name</label><input id="model-name" value={modelName} onChange={(event) => setModelName(event.target.value)} required /><label htmlFor="api-key">API key {editingLlm && <small>(leave blank to keep current key)</small>}</label><input id="api-key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} required={!editingLlm} /><div><button className="new-button" disabled={isSaving}>{isSaving ? "Saving…" : "Save configuration"}</button><button className="text-button" type="button" onClick={() => setIsLlmFormOpen(false)}>Cancel</button></div></form>}{llmConfigurations.length === 0 ? <div className="empty-state"><strong>No LLM configurations yet</strong><span>Add a provider configuration to make models available to agents.</span></div> : <ul className="project-list">{llmConfigurations.map((item) => <li key={item.id}><span className="project-badge">✦</span><div><strong>{item.name}</strong><small>{item.modelName} · {item.providerUrl}</small></div><div className="project-actions"><button onClick={() => openLlmForm(item)}>Edit</button><button onClick={() => void deleteLlm(item)}>Delete</button></div></li>)}</ul>}</section>
+        </main>
     </div>
   </div>;
 }
