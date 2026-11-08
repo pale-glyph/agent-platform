@@ -1,0 +1,10 @@
+.git
+.agents
+.codex
+**/bin
+**/obj
+**/node_modules
+**/.next
+.env
+.env.*
+coverage

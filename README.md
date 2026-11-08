@@ -89,7 +89,7 @@ stateDiagram-v2
 | Administration UI | Next.js (React) + TypeScript | Project administration, CRUD, agent-instance conversations, and run operations |
 | Data access | Entity Framework Core *(planned)* | Migrations and persistence mapping |
 | Observability | OpenTelemetry *(planned)* | Traces, metrics, and structured diagnostics |
-| Local infrastructure | Docker Compose *(planned)* | Reproducible PostgreSQL and NATS development environment |
+| Local stack | Docker Compose | Reproducible API, worker, administration UI, PostgreSQL, and NATS environment |
 
 ## Design documents
 
@@ -101,62 +101,66 @@ stateDiagram-v2
 
 This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI shell, and local PostgreSQL/NATS infrastructure. Persistence, message handling, authentication, and feature endpoints are the next implementation stages.
 
-## Planned project layout
+## Project layout
 
 ```text
-src/
-  AgentPlatform.Api/            HTTP endpoints and control-plane services
-  AgentPlatform.Application/    Use cases, contracts, and domain orchestration
-  AgentPlatform.Domain/         Domain model and business rules
-  AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
-  AgentPlatform.Worker/         Background execution host
 apps/
   agent-platform-admin/         Next.js administration UI
+  agent-platform-services/
+    src/
+      AgentPlatform.Api/        HTTP endpoints and control-plane services
+      AgentPlatform.Application/ Use cases, contracts, and domain orchestration
+      AgentPlatform.Domain/      Domain model and business rules
+      AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
+      AgentPlatform.Worker/      Background execution host
 tests/
   AgentPlatform.UnitTests/
   AgentPlatform.IntegrationTests/
-docker-compose.yml              Local PostgreSQL and NATS JetStream services
+docker-compose.yml              Local application and infrastructure stack
+run.sh                          Builds images and starts the local stack
 AGENTS.md                       Repository instructions for coding agents
 docs/design/                    Architecture and design records
 ```
 
-## Local development (target workflow)
+## Local development
 
 Prerequisites:
 
-- .NET SDK (current LTS)
 - Docker with Docker Compose
 
-Start local infrastructure and the backend hosts:
+Create your local configuration from the tracked template, then update any values required for your machine. `.env` is deliberately ignored by Git.
 
 ```bash
-docker compose up -d
-docker compose ps
-dotnet restore
-dotnet test
-dotnet run --project src/AgentPlatform.Api
-dotnet run --project src/AgentPlatform.Worker
+cp example.env .env
 ```
 
-In another terminal, install and start the administration UI:
+Build the API, worker, and administration UI images, then start the complete local stack:
 
 ```bash
+./run.sh -d
+docker compose ps
+```
+
+The configured host ports are defined in `.env`; the template exposes the administration UI at `http://localhost:3010` and PostgreSQL at `localhost:5420`.
+
+For host-based development, install the .NET SDK and Node.js as well. The backend projects are under `apps/agent-platform-services/src`:
+
+```bash
+dotnet restore
+dotnet test
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.Api
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.Worker
+
 cd apps/agent-platform-admin
 npm install
 npm run dev
 ```
 
-Configuration will be supplied through standard .NET configuration providers. These variables illustrate the expected local defaults:
+Docker Compose passes the .NET connection and NATS settings from `.env` as standard environment variables. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
 
-```bash
-ConnectionStrings__Platform=Host=localhost;Port=5432;Database=agent_platform;Username=agent;Password=agent
-Nats__Url=nats://localhost:4222
-Nats__StreamName=AGENT_PLATFORM
-```
+Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
-The Compose stack exposes PostgreSQL at `localhost:5432`, NATS at `localhost:4222`, and the NATS monitoring endpoint at `http://localhost:8222`. Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
-
-Never commit credentials or provider keys. Use user secrets or a local `.env` file excluded from source control.
+Never commit credentials or provider keys. Keep them in the ignored `.env` file or a local secret manager.
 
 ## Engineering principles
 
