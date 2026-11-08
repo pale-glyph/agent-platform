@@ -1,105 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type Project = { id: string; name: string; createdAt: string };
-type McpToolGrant = { mcpServerId: string; toolName: string };
-type Agent = {
-  id: string;
-  projectId: string;
-  name: string;
-  description: string;
-  systemPrompt: string;
-  llmConfigurationId: string | null;
-  mcpToolGrants: McpToolGrant[];
-  createdAt: string;
-};
-type LlmConfiguration = {
-  id: string;
-  name: string;
-  providerUrl: string;
-  modelName: string;
-  createdAt: string;
-};
-type McpServer = {
-  id: string;
-  projectId: string;
-  name: string;
-  endpoint: string;
-  cacheTtlSeconds: number;
-  security: "None" | "ApiKey";
-  cacheExpiresAt: string | null;
-  createdAt: string;
-};
-type McpTool = {
-  name: string;
-  description?: string;
-  inputSchema?: unknown;
-  annotations?: Record<string, unknown>;
-};
-type Webhook = {
-  id: string;
-  projectId: string;
-  name: string;
-  endpointUrl: string;
-  events: string[];
-  hasSigningSecret: boolean;
-  isEnabled: boolean;
-  createdAt: string;
-};
-type WebhookMetrics = {
-  sent: number;
-  failed: number;
-  pending: number;
-  attempts: number;
-};
-type WebhookDelivery = {
-  id: string;
-  webhookId: string;
-  webhookName: string;
-  eventType: string;
-  status: "Pending" | "Succeeded" | "Failed" | "Cancelled";
-  attemptCount: number;
-  lastStatusCode: number | null;
-  lastError: string | null;
-  createdAt: string;
-  nextAttemptAt: string;
-  completedAt: string | null;
-};
-type AgentInstance = {
-  id: string;
-  projectId: string;
-  agentId: string;
-  status: string;
-  hasPendingQueuedMessage: boolean;
-  cancellationRequestedAt: string | null;
-  createdAt: string;
-};
-type TimelineEntry = {
-  id: string;
-  instanceId: string;
-  sequenceNumber: number;
-  type: "Message" | "ToolCall";
-  role: "User" | "Agent" | null;
-  delivery: "Initial" | "Queued" | "Steering" | null;
-  messageStatus: "Pending" | "Delivered" | "Cancelled" | null;
-  content: string | null;
-  toolName: string | null;
-  toolArguments: string | null;
-  toolResult: string | null;
-  createdAt: string;
-};
-type TimelinePage = { items: TimelineEntry[]; nextCursor: number | null };
-type UsageBucket = {
-  bucketStart: string;
-  callCount: number;
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  totalTokens: number;
-};
-type Tab = "overview" | "agents" | "servers" | "webhooks" | "instances";
+import { AppHeader } from "./components/app-header";
+import { AppSidebar } from "./components/app-sidebar";
+import { ProjectCreateForm } from "./components/project-create-form";
+import { ConversationPage } from "./components/pages/conversation-page";
+import { LlmConfigurationsPage } from "./components/pages/llm-configurations-page";
+import type {
+  AdminPage,
+  Agent,
+  AgentInstance,
+  LlmConfiguration,
+  McpServer,
+  McpTool,
+  Project,
+  ProjectTab,
+  TimelineEntry,
+  TimelinePage,
+  UsageBucket,
+  Webhook,
+  WebhookDelivery,
+  WebhookMetrics,
+} from "./types";
 
 const webhookEventTypes = [
   ["project.updated", "Project updated"],
@@ -113,7 +35,7 @@ const webhookEventTypes = [
   ["mcp_server.deleted", "MCP server deleted"],
 ] as const;
 
-const tabs: { id: Tab; label: string }[] = [
+const tabs: { id: ProjectTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "agents", label: "Agents" },
   { id: "servers", label: "Servers" },
@@ -125,7 +47,7 @@ const jimAgentId = process.env.NEXT_PUBLIC_JIM_AGENT_ID ?? "";
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<ProjectTab>("overview");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
@@ -191,7 +113,7 @@ export default function HomePage() {
   const [providerUrl, setProviderUrl] = useState("");
   const [modelName, setModelName] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [page, setPage] = useState<"projects" | "chat" | "llm" | "usage">("projects");
+  const [page, setPage] = useState<AdminPage>("projects");
   const [platformUsage, setPlatformUsage] = useState<UsageBucket[]>([]);
   const [projectUsage, setProjectUsage] = useState<UsageBucket[]>([]);
   const [agentUsage, setAgentUsage] = useState<Record<string, UsageBucket[]>>({});
@@ -993,162 +915,17 @@ export default function HomePage() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="Primary navigation">
-        <div className="sidebar-header">
-          <a className="brand" href="#workspace">
-            <span className="brand-mark">AP</span>
-            <span className="brand-name">Agent Platform</span>
-          </a>
-        </div>
-        <nav>
-          <p className="nav-label">Workspace</p>
-          <button
-            className={page === "projects" ? "active" : ""}
-            onClick={() => setPage("projects")}
-          >
-            <span className="nav-icon">▦</span>
-            <span>Projects</span>
-          </button>
-          <button
-            className={page === "chat" ? "active" : ""}
-            onClick={() => setPage("chat")}
-          >
-            <span className="nav-icon">◌</span>
-            <span>Chat with Jim</span>
-          </button>
-          <button
-            className={page === "llm" ? "active" : ""}
-            onClick={() => setPage("llm")}
-          >
-            <span className="nav-icon">✦</span>
-            <span>LLM configurations</span>
-          </button>
-          <button
-            className={page === "usage" ? "active" : ""}
-            onClick={() => {
-              setPage("usage");
-              void loadUsage();
-            }}
-          >
-            <span className="nav-icon">◫</span>
-            <span>Usage</span>
-          </button>
-        </nav>
-        {page === "projects" && (
-          <section className="project-nav" aria-labelledby="project-nav-title">
-            <div>
-              <p className="nav-label" id="project-nav-title">
-                Projects
-              </p>
-              <button
-                className="small-add"
-                type="button"
-                onClick={() => setIsProjectFormOpen(true)}
-                aria-label="Create project"
-              >
-                +
-              </button>
-            </div>
-            {isLoading ? (
-              <p className="nav-loading">Loading…</p>
-            ) : (
-              projects.map((project) => (
-                <button
-                  key={project.id}
-                  className={
-                    project.id === selectedProjectId
-                      ? "project-nav-item active"
-                      : "project-nav-item"
-                  }
-                  onClick={() => selectProject(project.id)}
-                >
-                  <span>{project.name.slice(0, 1).toUpperCase()}</span>
-                  <strong>{project.name}</strong>
-                </button>
-              ))
-            )}
-          </section>
-        )}
-        <div className="sidebar-footer">
-          <span className="avatar">OP</span>
-          <span className="profile-copy">
-            <strong>Operator</strong>
-            <small>Administrator</small>
-          </span>
-        </div>
-      </aside>
+      <AppSidebar page={page} projects={projects} selectedProjectId={selectedProjectId} isLoading={isLoading} onPageChange={setPage} onUsageSelect={() => { setPage("usage"); void loadUsage(); }} onProjectSelect={selectProject} onCreateProject={() => setIsProjectFormOpen(true)} />
 
       <div className="workspace" id="workspace">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <span>
-              {page === "projects"
-                ? "Projects"
-                : page === "chat"
-                  ? "Chat with Jim"
-                  : page === "usage"
-                    ? "Usage"
-                    : "Platform"}
-            </span>
-            {page === "projects" && (
-              <>
-                <span aria-hidden="true">/</span>
-                <strong>{selectedProject?.name ?? "Select a project"}</strong>
-              </>
-            )}
-          </div>
-          {page === "projects" ? (
-            <button
-              className="new-button"
-              type="button"
-              onClick={() => setIsProjectFormOpen(true)}
-            >
-              New project
-            </button>
-          ) : page === "llm" ? (
-            <button
-              className="new-button"
-              type="button"
-              onClick={() => openLlmForm()}
-            >
-              New configuration
-            </button>
-          ) : null}
-        </header>
+        <AppHeader page={page} selectedProject={selectedProject} onCreateProject={() => setIsProjectFormOpen(true)} onCreateLlm={() => openLlmForm()} />
         <main>
           {message && (
             <p className="status-message" role="alert">
               {message}
             </p>
           )}
-          {page === "projects" && isProjectFormOpen && (
-            <form
-              className="project-form project-create-form"
-              onSubmit={createProject}
-            >
-              <label htmlFor="project-name">New project name</label>
-              <div>
-                <input
-                  id="project-name"
-                  value={projectName}
-                  autoFocus
-                  maxLength={200}
-                  onChange={(event) => setProjectName(event.target.value)}
-                  required
-                />
-                <button className="new-button" disabled={isSaving}>
-                  Create project
-                </button>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => setIsProjectFormOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+          {page === "projects" && isProjectFormOpen && <ProjectCreateForm name={projectName} isSaving={isSaving} onNameChange={setProjectName} onSubmit={createProject} onCancel={() => setIsProjectFormOpen(false)} />}
           {page === "projects" &&
             (!selectedProject ? (
               <div className="empty-state workspace-empty">
@@ -1833,112 +1610,8 @@ export default function HomePage() {
                 )}
               </>
             ))}
-          {page === "chat" && (
-            <section className="project-panel tab-panel conversation-panel">
-              <div className="panel-heading"><div><p className="eyebrow">Assistant</p><h2>Jim</h2></div></div>
-              {!jimAgentId ? <div className="empty-state compact-empty"><strong>Jim is not configured</strong><span>Set NEXT_PUBLIC_JIM_AGENT_ID to Jim’s agent UUID and restart the admin app.</span></div> : !jimProjectId ? <div className="empty-state compact-empty"><strong>Finding Jim…</strong><span>Jim’s configured agent UUID was not found in an available project yet.</span></div> : <div className="conversation-layout"><aside className="conversation-list"><form onSubmit={startConversation}><label htmlFor="initial-prompt">New conversation</label><textarea id="initial-prompt" value={initialPrompt} onChange={(event) => setInitialPrompt(event.target.value)} placeholder="Ask Jim to configure a project." required /><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Starting…" : "Start conversation"}</button></form><div className="conversation-history" aria-label="Jim conversations">{jimInstances.map((instance) => <div className="conversation-history-item" key={instance.id}><button className={instance.id === activeInstanceId ? "active" : ""} type="button" onClick={() => setActiveInstanceId(instance.id)}><strong>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(instance.createdAt))}</strong><small>{instance.status}</small></button><button aria-label="Delete conversation" className="conversation-delete" type="button" onClick={() => void deleteConversation(instance)}>Delete</button></div>)}</div></aside><section className="conversation-thread" aria-live="polite">{!activeInstanceId ? <div className="empty-state compact-empty"><strong>Talk to Jim</strong><span>Start a conversation to ask Jim to configure your projects.</span></div> : <>{timeline.length === 0 ? <div className="empty-state compact-empty"><strong>Waiting for activity</strong><span>Jim’s execution timeline will appear here.</span></div> : <ol>{timeline.map((entry) => <li key={entry.id} className={`conversation-entry ${entry.type.toLowerCase()} ${entry.role === "User" ? "operator" : "agent"}`}>{entry.type === "ToolCall" ? <><strong>Tool call: {entry.toolName}</strong><pre>{entry.toolArguments}</pre>{entry.toolResult && <pre>{entry.toolResult}</pre>}</> : <><strong>{entry.role === "User" ? "You" : "Jim"}{entry.delivery && <small>{entry.delivery} · {entry.messageStatus}</small>}</strong><p>{entry.content}</p></>}</li>)}</ol>}<form className="conversation-compose" onSubmit={sendConversationMessage}><label htmlFor="conversation-message">Message Jim</label><textarea id="conversation-message" value={outgoingMessage} onChange={(event) => setOutgoingMessage(event.target.value)} placeholder="Ask Jim to configure a project." required /><div><select aria-label="Message delivery" value={messageDelivery} onChange={(event) => setMessageDelivery(event.target.value as "Queued" | "Steering")}><option value="Queued">Queue message</option><option value="Steering">Steer current request</option></select><button className="new-button" disabled={isSendingMessage}>{isSendingMessage ? "Sending…" : "Send"}</button></div></form></>}</section></div>}
-            </section>
-          )}
-          {page === "llm" && (
-            <section
-              className="project-panel tab-panel"
-              id="llm-configurations"
-            >
-              <div className="panel-heading">
-                <div>
-                  <p className="eyebrow">Platform</p>
-                  <h2>LLM configurations</h2>
-                </div>
-                <button
-                  className="new-button"
-                  type="button"
-                  onClick={() => openLlmForm()}
-                >
-                  New configuration
-                </button>
-              </div>
-              {isLlmFormOpen && (
-                <form className="agent-form" onSubmit={saveLlm}>
-                  <label htmlFor="llm-name">Name</label>
-                  <input
-                    id="llm-name"
-                    value={llmName}
-                    onChange={(event) => setLlmName(event.target.value)}
-                    required
-                  />
-                  <label htmlFor="provider-url">Provider URL</label>
-                  <input
-                    id="provider-url"
-                    type="url"
-                    value={providerUrl}
-                    onChange={(event) => setProviderUrl(event.target.value)}
-                    required
-                  />
-                  <label htmlFor="model-name">Model name</label>
-                  <input
-                    id="model-name"
-                    value={modelName}
-                    onChange={(event) => setModelName(event.target.value)}
-                    required
-                  />
-                  <label htmlFor="api-key">
-                    API key{" "}
-                    {editingLlm && (
-                      <small>(leave blank to keep current key)</small>
-                    )}
-                  </label>
-                  <input
-                    id="api-key"
-                    type="password"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    required={!editingLlm}
-                  />
-                  <div>
-                    <button className="new-button" disabled={isSaving}>
-                      {isSaving ? "Saving…" : "Save configuration"}
-                    </button>
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => setIsLlmFormOpen(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-              {llmConfigurations.length === 0 ? (
-                <div className="empty-state">
-                  <strong>No LLM configurations yet</strong>
-                  <span>
-                    Add a provider configuration to make models available to
-                    agents.
-                  </span>
-                </div>
-              ) : (
-                <ul className="project-list">
-                  {llmConfigurations.map((item) => (
-                    <li key={item.id}>
-                      <span className="project-badge">✦</span>
-                      <div>
-                        <strong>{item.name}</strong>
-                        <small>
-                          {item.modelName} · {item.providerUrl}
-                        </small>
-                      </div>
-                      <div className="project-actions">
-                        <button onClick={() => openLlmForm(item)}>Edit</button>
-                        <button onClick={() => void deleteLlm(item)}>
-                          Delete
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
+          {page === "chat" && <ConversationPage agentId={jimAgentId} projectId={jimProjectId} instances={jimInstances} activeInstanceId={activeInstanceId} timeline={timeline} initialPrompt={initialPrompt} outgoingMessage={outgoingMessage} messageDelivery={messageDelivery} isSending={isSendingMessage} onInitialPromptChange={setInitialPrompt} onOutgoingMessageChange={setOutgoingMessage} onMessageDeliveryChange={setMessageDelivery} onStart={startConversation} onSend={sendConversationMessage} onSelectInstance={setActiveInstanceId} onDeleteInstance={(instance) => void deleteConversation(instance)} />}
+          {page === "llm" && <LlmConfigurationsPage configurations={llmConfigurations} editing={editingLlm} isFormOpen={isLlmFormOpen} isSaving={isSaving} name={llmName} providerUrl={providerUrl} modelName={modelName} apiKey={apiKey} onOpenForm={() => openLlmForm()} onSubmit={saveLlm} onCancel={() => setIsLlmFormOpen(false)} onNameChange={setLlmName} onProviderUrlChange={setProviderUrl} onModelNameChange={setModelName} onApiKeyChange={setApiKey} onEdit={openLlmForm} onDelete={(item) => void deleteLlm(item)} />}
           {page === "usage" && (
             <section className="usage-page" aria-labelledby="usage-title">
               <div className="project-heading">

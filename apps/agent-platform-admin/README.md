@@ -2,6 +2,12 @@
 
 The Next.js application for administering projects, agents, MCP servers, agent instances, and execution runs.
 
+## UI organization
+
+`app/page.tsx` owns client-side data loading and mutations. Shared API view models live in
+`app/types.ts`; reusable shell and form controls are in `app/components`; and independent
+application screens belong under `app/components/pages`.
+
 ## Development
 
 ```bash
