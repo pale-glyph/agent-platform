@@ -157,7 +157,7 @@ export default function HomePage() {
     setIsLoadingAgentMcpTools(true);
     try {
       const entries = await Promise.all(mcpServers.map(async (server) => {
-        const response = await fetch(`/api/projects/${selectedProjectId}/mcp-servers/${server.id}/tools`);
+        const response = await fetch(`/api/projects/${selectedProjectId}/mcp-servers/${server.id}`);
         if (!response.ok) return [server.id, []] as const;
         const result = await response.json() as { tools?: McpTool[] } | McpTool[];
         return [server.id, Array.isArray(result) ? result : result.tools ?? []] as const;
@@ -210,7 +210,7 @@ export default function HomePage() {
     if (!selectedProjectId) return;
     setViewingToolsFor(server); setMcpTools([]); setMcpToolsError(null); setIsLoadingMcpTools(true);
     try {
-      const response = await fetch(`/api/projects/${selectedProjectId}/mcp-servers/${server.id}/tools`);
+      const response = await fetch(`/api/projects/${selectedProjectId}/mcp-servers/${server.id}`);
       if (!response.ok) throw new Error(await readError(response));
       const result = await response.json() as { tools?: McpTool[] } | McpTool[];
       const tools = Array.isArray(result) ? result : result.tools;
