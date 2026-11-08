@@ -1,9 +1,12 @@
 using AgentPlatform.Application.Agents;
 using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
+using AgentPlatform.Application.Mcp;
+using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +16,9 @@ builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<LlmConfigurationService>();
+builder.Services.AddScoped<McpServerService>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -107,11 +112,51 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 agents.MapDelete("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, agentId, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
+var mcpServers = projects.MapGroup("/{projectId:guid}/mcp-servers");
+mcpServers.MapGet("/", async (Guid projectId, McpServerService service, CancellationToken ct) =>
+{
+    var items = await service.ListAsync(projectId, ct);
+    return items is null ? Results.NotFound() : Results.Ok(items.Select(McpServerResponse.FromSummary));
+});
+mcpServers.MapPost("/", async (Guid projectId, McpServerRequest request, McpServerService service, CancellationToken ct) =>
+{
+    try
+    {
+        var item = await service.CreateAsync(projectId, request.Name ?? "", request.Endpoint ?? "", request.CacheTtlSeconds, request.Security, request.ApiKey, ct);
+        return item is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/mcp-servers/{item.Id}", McpServerResponse.FromSummary(item));
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["mcpServer"] = [exception.Message] }); }
+});
+mcpServers.MapPut("/{serverId:guid}", async (Guid projectId, Guid serverId, McpServerRequest request, McpServerService service, CancellationToken ct) =>
+{
+    try
+    {
+        var item = await service.UpdateAsync(projectId, serverId, request.Name ?? "", request.Endpoint ?? "", request.CacheTtlSeconds, request.Security, request.ApiKey, ct);
+        return item is null ? Results.NotFound() : Results.Ok(McpServerResponse.FromSummary(item));
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["mcpServer"] = [exception.Message] }); }
+});
+mcpServers.MapDelete("/{serverId:guid}", async (Guid projectId, Guid serverId, McpServerService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, serverId, ct) ? Results.NoContent() : Results.NotFound());
+mcpServers.MapPost("/{serverId:guid}/cache/clear", async (Guid projectId, Guid serverId, McpServerService service, CancellationToken ct) =>
+    await service.ClearCacheAsync(projectId, serverId, ct) ? Results.NoContent() : Results.NotFound());
+mcpServers.MapGet("/{serverId:guid}/tools", async (Guid projectId, Guid serverId, McpServerService service, CancellationToken ct) =>
+{
+    try
+    {
+        var definitions = await service.GetToolDefinitionsAsync(projectId, serverId, ct);
+        return definitions is null ? Results.NotFound() : Results.Content(definitions.ToolsJson, "application/json");
+    }
+    catch (HttpRequestException exception) { return Results.Problem("The MCP server could not be reached.", statusCode: StatusCodes.Status502BadGateway, detail: exception.Message); }
+    catch (InvalidOperationException exception) { return Results.Problem("The MCP server returned an invalid tool definition response.", statusCode: StatusCodes.Status502BadGateway, detail: exception.Message); }
+});
+
 app.Run();
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
+public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);
@@ -119,4 +164,8 @@ public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset Create
 public sealed record AgentResponse(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, DateTimeOffset CreatedAt)
 {
     public static AgentResponse FromSummary(AgentSummary summary) => new(summary.Id, summary.ProjectId, summary.Name, summary.Description, summary.SystemPrompt, summary.CreatedAt);
+}
+public sealed record McpServerResponse(Guid Id, Guid ProjectId, string Name, string Endpoint, int CacheTtlSeconds, McpServerSecurity Security, DateTimeOffset? CacheExpiresAt, DateTimeOffset CreatedAt)
+{
+    public static McpServerResponse FromSummary(McpServerSummary summary) => new(summary.Id, summary.ProjectId, summary.Name, summary.Endpoint, summary.CacheTtlSeconds, summary.Security, summary.CacheExpiresAt, summary.CreatedAt);
 }

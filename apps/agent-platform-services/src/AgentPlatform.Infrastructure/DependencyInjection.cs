@@ -1,5 +1,6 @@
 using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Infrastructure.Persistence;
+using AgentPlatform.Infrastructure.Mcp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +14,9 @@ public static class DependencyInjection
         services.AddScoped<IProjectRepository, EfProjectRepository>();
         services.AddScoped<IAgentRepository, EfAgentRepository>();
         services.AddScoped<ILlmConfigurationRepository, EfLlmConfigurationRepository>();
+        services.AddScoped<IMcpServerRepository, EfMcpServerRepository>();
+        services.AddHttpClient("mcp");
+        services.AddScoped<IMcpToolDefinitionClient, HttpMcpToolDefinitionClient>();
         return services;
     }
 }
