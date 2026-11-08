@@ -36,6 +36,8 @@ services:
     build:
       context: .
       dockerfile: apps/agent-platform-admin/Dockerfile
+    environment:
+      API_INTERNAL_URL: http://api:8080
     ports:
       - "${ADMIN_PORT}:3000"
     depends_on:

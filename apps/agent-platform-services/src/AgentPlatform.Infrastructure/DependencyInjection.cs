@@ -1,12 +1,16 @@
+using AgentPlatform.Application.Abstractions;
+using AgentPlatform.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPlatform.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
     {
-        // PostgreSQL, NATS JetStream, and outbox registrations will be added here.
+        services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddScoped<IProjectRepository, EfProjectRepository>();
         return services;
     }
 }

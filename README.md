@@ -87,7 +87,7 @@ stateDiagram-v2
 | Database | PostgreSQL | Source of truth for configuration and execution history |
 | Messaging | NATS JetStream | Durable dispatch, consumer acknowledgements, event fan-out |
 | Administration UI | Next.js (React) + TypeScript | Project administration, CRUD, agent-instance conversations, and run operations |
-| Data access | Entity Framework Core *(planned)* | Migrations and persistence mapping |
+| Data access | Entity Framework Core | PostgreSQL migrations and persistence mapping |
 | Observability | OpenTelemetry *(planned)* | Traces, metrics, and structured diagnostics |
 | Local stack | Docker Compose | Reproducible API, worker, administration UI, PostgreSQL, and NATS environment |
 
@@ -99,7 +99,7 @@ stateDiagram-v2
 
 ## Repository status
 
-This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI shell, and local PostgreSQL/NATS infrastructure. Persistence, message handling, authentication, and feature endpoints are the next implementation stages.
+This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, and project CRUD. Message handling, authentication, and the remaining feature endpoints are the next implementation stages.
 
 ## Project layout
 
@@ -156,7 +156,7 @@ npm install
 npm run dev
 ```
 
-Docker Compose passes the .NET connection and NATS settings from `.env` as standard environment variables. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
+Docker Compose passes the .NET connection and NATS settings from `.env` as standard environment variables. The browser accesses projects through same-origin Next.js route handlers; the administration container forwards those requests to the API over the internal Compose network. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
 
 Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
