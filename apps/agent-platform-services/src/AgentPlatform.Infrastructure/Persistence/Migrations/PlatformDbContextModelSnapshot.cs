@@ -49,7 +49,29 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.ToTable("projects");
         });
 
+        modelBuilder.Entity("AgentPlatform.Domain.Mcp.McpServer", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<string>("ApiKey").HasMaxLength(10000).HasColumnType("character varying(10000)").HasColumnName("api_key");
+            item.Property<int>("CacheTtlSeconds").HasColumnType("integer").HasColumnName("cache_ttl_seconds");
+            item.Property<DateTimeOffset?>("CacheExpiresAt").HasColumnType("timestamp with time zone").HasColumnName("cache_expires_at");
+            item.Property<string>("CachedToolDefinitions").HasColumnType("jsonb").HasColumnName("cached_tool_definitions");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<string>("Endpoint").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("endpoint");
+            item.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("name");
+            item.Property<Guid>("ProjectId").HasColumnType("uuid").HasColumnName("project_id");
+            item.Property<AgentPlatform.Domain.Mcp.McpServerSecurity>("Security").IsRequired().HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("security");
+            item.HasKey("Id");
+            item.HasIndex("ProjectId", "Name").IsUnique();
+            item.ToTable("mcp_servers");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentDefinition", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Mcp.McpServer", item =>
         {
             item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });

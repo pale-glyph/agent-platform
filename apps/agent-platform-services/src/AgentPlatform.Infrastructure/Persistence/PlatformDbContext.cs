@@ -1,5 +1,6 @@
 using AgentPlatform.Domain.Agents;
 using AgentPlatform.Domain.Llm;
+using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Domain.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
     public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
+    public DbSet<McpServer> McpServers => Set<McpServer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,5 +40,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         llm.Property(item => item.ProviderUrl).HasColumnName("provider_url").HasMaxLength(LlmConfiguration.MaximumProviderUrlLength).IsRequired();
         llm.Property(item => item.ModelName).HasColumnName("model_name").HasMaxLength(LlmConfiguration.MaximumModelNameLength).IsRequired();
         llm.Property(item => item.ApiKey).HasColumnName("api_key").HasMaxLength(LlmConfiguration.MaximumApiKeyLength).IsRequired(); llm.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired(); llm.HasIndex(item => item.Name).IsUnique();
+
+        var mcp = modelBuilder.Entity<McpServer>();
+        mcp.ToTable("mcp_servers");
+        mcp.HasKey(item => item.Id);
+        mcp.Property(item => item.Id).HasColumnName("id");
+        mcp.Property(item => item.ProjectId).HasColumnName("project_id");
+        mcp.Property(item => item.Name).HasColumnName("name").HasMaxLength(McpServer.MaximumNameLength).IsRequired();
+        mcp.Property(item => item.Endpoint).HasColumnName("endpoint").HasMaxLength(McpServer.MaximumEndpointLength).IsRequired();
+        mcp.Property(item => item.CacheTtlSeconds).HasColumnName("cache_ttl_seconds");
+        mcp.Property(item => item.Security).HasColumnName("security").HasConversion<string>().HasMaxLength(20).IsRequired();
+        mcp.Property(item => item.ApiKey).HasColumnName("api_key").HasMaxLength(McpServer.MaximumApiKeyLength);
+        mcp.Property(item => item.CachedToolDefinitions).HasColumnName("cached_tool_definitions").HasColumnType("jsonb");
+        mcp.Property(item => item.CacheExpiresAt).HasColumnName("cache_expires_at");
+        mcp.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        mcp.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
+        mcp.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
     }
 }
