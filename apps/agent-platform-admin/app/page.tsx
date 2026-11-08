@@ -12,6 +12,7 @@ const navigation = [
 ] as const;
 
 type Project = { id: string; name: string; createdAt: string };
+type Agent = { id: string; projectId: string; name: string; description: string; systemPrompt: string; createdAt: string };
 
 function Icon({ name }: { name: (typeof navigation)[number]["icon"] | "menu" | "close" }) {
   const common = { "aria-hidden": true, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8 };
@@ -36,6 +37,15 @@ export default function HomePage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [name, setName] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [isAgentsLoading, setIsAgentsLoading] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [isAgentFormOpen, setIsAgentFormOpen] = useState(false);
+  const [agentName, setAgentName] = useState("");
+  const [agentDescription, setAgentDescription] = useState("");
+  const [agentPrompt, setAgentPrompt] = useState("");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -55,7 +65,9 @@ export default function HomePage() {
     try {
       const response = await fetch("/api/projects/");
       if (!response.ok) throw new Error("Projects could not be loaded.");
-      setProjects(await response.json() as Project[]);
+      const items = await response.json() as Project[];
+      setProjects(items);
+      setSelectedProjectId((current) => current || items[0]?.id || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Projects could not be loaded.");
     } finally {
@@ -64,6 +76,21 @@ export default function HomePage() {
   };
 
   useEffect(() => { void loadProjects(); }, []);
+
+  const loadAgents = async () => {
+    if (!selectedProjectId) { setAgents([]); return; }
+    setIsAgentsLoading(true);
+    setAgentError(null);
+    try {
+      const response = await fetch(`/api/projects/${selectedProjectId}/agents/`);
+      if (!response.ok) throw new Error("Agents could not be loaded.");
+      setAgents(await response.json() as Agent[]);
+    } catch (loadError) {
+      setAgentError(loadError instanceof Error ? loadError.message : "Agents could not be loaded.");
+    } finally { setIsAgentsLoading(false); }
+  };
+
+  useEffect(() => { void loadAgents(); }, [selectedProjectId]);
 
   const openCreateForm = () => {
     setEditingProject(null);
@@ -81,7 +108,7 @@ export default function HomePage() {
 
   const readError = async (response: Response) => {
     const body = await response.json().catch(() => null) as { errors?: Record<string, string[]>; title?: string } | null;
-    return body?.errors?.name?.[0] ?? body?.title ?? "The project could not be saved.";
+    return body?.errors?.name?.[0] ?? body?.errors?.agent?.[0] ?? body?.title ?? "The request could not be saved.";
   };
 
   const saveProject = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -117,6 +144,34 @@ export default function HomePage() {
     }
 
     await loadProjects();
+  };
+
+  const openAgentForm = (agent?: Agent) => {
+    setEditingAgent(agent ?? null);
+    setAgentName(agent?.name ?? "");
+    setAgentDescription(agent?.description ?? "");
+    setAgentPrompt(agent?.systemPrompt ?? "");
+    setAgentError(null);
+    setIsAgentFormOpen(true);
+  };
+
+  const saveAgent = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedProjectId) return;
+    setIsSubmitting(true);
+    setAgentError(null);
+    const response = await fetch(editingAgent ? `/api/projects/${selectedProjectId}/agents/${editingAgent.id}` : `/api/projects/${selectedProjectId}/agents/`, { method: editingAgent ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: agentName, description: agentDescription, systemPrompt: agentPrompt }) });
+    if (!response.ok) { setAgentError(await readError(response)); setIsSubmitting(false); return; }
+    setIsAgentFormOpen(false);
+    setIsSubmitting(false);
+    await loadAgents();
+  };
+
+  const deleteAgent = async (agent: Agent) => {
+    if (!selectedProjectId || !window.confirm(`Delete “${agent.name}”? This cannot be undone.`)) return;
+    const response = await fetch(`/api/projects/${selectedProjectId}/agents/${agent.id}`, { method: "DELETE" });
+    if (!response.ok) { setAgentError("The agent could not be deleted."); return; }
+    await loadAgents();
   };
 
   return (
@@ -185,6 +240,14 @@ export default function HomePage() {
                 {projects.map((project) => <li key={project.id}><span className="project-badge">{project.name.slice(0, 1).toUpperCase()}</span><div><strong>{project.name}</strong><small>Created {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(project.createdAt))}</small></div><div className="project-actions"><button type="button" onClick={() => openEditForm(project)}>Edit</button><button type="button" onClick={() => void deleteProject(project)}>Delete</button></div></li>)}
               </ul>
             )}
+          </section>
+
+          <section className="project-panel agent-panel" id="agents" aria-labelledby="agents-heading">
+            <div className="panel-heading"><div><p className="eyebrow">Agents</p><h2 id="agents-heading">Agent definitions</h2></div><button className="new-button" type="button" onClick={() => openAgentForm()} disabled={!selectedProjectId}>New agent</button></div>
+            <div className="agent-project-picker"><label htmlFor="agent-project">Project</label><select id="agent-project" value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}><option value="">Select a project</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></div>
+            {agentError && <p className="status-message" role="alert">{agentError}</p>}
+            {isAgentFormOpen && <form className="agent-form" onSubmit={saveAgent}><label htmlFor="agent-name">Name</label><input id="agent-name" value={agentName} maxLength={200} onChange={(event) => setAgentName(event.target.value)} required /><label htmlFor="agent-description">Description</label><textarea id="agent-description" value={agentDescription} maxLength={2000} onChange={(event) => setAgentDescription(event.target.value)} required /><label htmlFor="agent-prompt">System prompt</label><textarea id="agent-prompt" value={agentPrompt} maxLength={20000} onChange={(event) => setAgentPrompt(event.target.value)} required /><div><button className="new-button" disabled={isSubmitting}>{isSubmitting ? "Saving…" : editingAgent ? "Save changes" : "Create agent"}</button><button className="text-button" type="button" onClick={() => setIsAgentFormOpen(false)}>Cancel</button></div></form>}
+            {!selectedProjectId ? <p className="empty-state">Create or select a project before adding agents.</p> : isAgentsLoading ? <p className="empty-state" role="status">Loading agents…</p> : agents.length === 0 ? <div className="empty-state"><strong>No agents yet</strong><span>Define an agent’s purpose and system prompt for this project.</span><button className="new-button" type="button" onClick={() => openAgentForm()}>Create agent</button></div> : <ul className="project-list">{agents.map((agent) => <li key={agent.id}><span className="project-badge">{agent.name.slice(0, 1).toUpperCase()}</span><div><strong>{agent.name}</strong><small>{agent.description}</small></div><div className="project-actions"><button type="button" onClick={() => openAgentForm(agent)}>Edit</button><button type="button" onClick={() => void deleteAgent(agent)}>Delete</button></div></li>)}</ul>}
           </section>
         </main>
       </div>

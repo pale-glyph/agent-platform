@@ -11,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IProjectRepository, EfProjectRepository>();
+        services.AddScoped<IAgentRepository, EfAgentRepository>();
         return services;
     }
 }
