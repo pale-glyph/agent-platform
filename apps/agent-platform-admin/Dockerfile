@@ -1,6 +1,8 @@
 FROM node:22-alpine AS build
 
 WORKDIR /app
+ARG JIM_AGENT_ID
+ENV NEXT_PUBLIC_JIM_AGENT_ID=$JIM_AGENT_ID
 COPY apps/agent-platform-admin/package.json ./
 RUN npm install
 

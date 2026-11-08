@@ -141,6 +141,8 @@ Create your local configuration from the tracked template, then update any value
 cp example.env .env
 ```
 
+To enable the dedicated administration chat, create a normal project agent named Jim, grant it the required platform MCP tools, and set its UUID as `JIM_AGENT_ID` in `.env`. Rebuild the administration image after changing this value.
+
 Build the API, worker, and administration UI images, then start the complete local stack:
 
 ```bash
