@@ -39,6 +39,7 @@ public sealed class WebhookDelivery
     public string Payload { get; private set; } = null!;
     public WebhookDeliveryStatus Status { get; private set; }
     public int AttemptCount { get; private set; }
+    public int RetryAttemptCount { get; private set; }
     public DateTimeOffset NextAttemptAt { get; private set; }
     public DateTimeOffset? ClaimedUntil { get; private set; }
     public int? LastStatusCode { get; private set; }
@@ -46,7 +47,7 @@ public sealed class WebhookDelivery
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
-    public void Claim(DateTimeOffset now) { AttemptCount++; ClaimedUntil = now.AddMinutes(2); }
+    public void Claim(DateTimeOffset now) { AttemptCount++; RetryAttemptCount++; ClaimedUntil = now.AddMinutes(2); }
 
     public void Succeed(DateTimeOffset now, int statusCode)
     {
@@ -68,21 +69,33 @@ public sealed class WebhookDelivery
         LastStatusCode = statusCode;
         LastError = error.Length > 2_000 ? error[..2_000] : error;
         ClaimedUntil = null;
-        if (!retryable || AttemptCount >= 10)
+        if (!retryable || RetryAttemptCount >= 10)
         {
             Status = WebhookDeliveryStatus.Failed;
             CompletedAt = now;
             return;
         }
 
-        var delaySeconds = Math.Min(3_600, 5 * Math.Pow(2, Math.Min(AttemptCount - 1, 10)));
+        var delaySeconds = Math.Min(3_600, 5 * Math.Pow(2, Math.Min(RetryAttemptCount - 1, 10)));
         NextAttemptAt = now.AddSeconds(delaySeconds);
         Status = WebhookDeliveryStatus.Pending;
     }
 
+    public void RetryManually(DateTimeOffset now)
+    {
+        if (Status != WebhookDeliveryStatus.Failed) return;
+        Status = WebhookDeliveryStatus.Pending;
+        RetryAttemptCount = 0;
+        NextAttemptAt = now;
+        ClaimedUntil = null;
+        LastStatusCode = null;
+        LastError = null;
+        CompletedAt = null;
+    }
+
     public void Cancel(DateTimeOffset now)
     {
-        if (Status != WebhookDeliveryStatus.Pending) return;
+        if (Status is not (WebhookDeliveryStatus.Pending or WebhookDeliveryStatus.Failed)) return;
         Status = WebhookDeliveryStatus.Cancelled;
         ClaimedUntil = null;
         CompletedAt = now;

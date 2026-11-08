@@ -197,6 +197,11 @@ webhooks.MapGet("/deliveries", async (Guid projectId, WebhookService service, Ca
     var deliveries = await service.ListDeliveriesAsync(projectId, ct);
     return deliveries is null ? Results.NotFound() : Results.Ok(deliveries);
 });
+webhooks.MapPost("/deliveries/retry-failed", async (Guid projectId, WebhookService service, CancellationToken ct) =>
+{
+    var retried = await service.RetryFailedAsync(projectId, ct);
+    return retried is null ? Results.NotFound() : Results.Ok(new { retried });
+});
 
 app.Run();
 

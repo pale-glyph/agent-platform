@@ -11,6 +11,7 @@ public interface IWebhookRepository
     void Remove(WebhookEndpoint webhook);
     Task<IReadOnlyList<WebhookDeliverySummary>> ListDeliveriesAsync(Guid projectId, int limit, CancellationToken cancellationToken);
     Task<WebhookMetricsSummary> GetMetricsAsync(Guid projectId, CancellationToken cancellationToken);
+    Task<int> RetryFailedAsync(Guid projectId, DateTimeOffset now, CancellationToken cancellationToken);
     Task CancelPendingForWebhookAsync(Guid webhookId, DateTimeOffset now, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

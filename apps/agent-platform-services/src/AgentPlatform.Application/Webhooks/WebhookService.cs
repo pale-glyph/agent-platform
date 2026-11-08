@@ -54,5 +54,11 @@ public sealed class WebhookService(IProjectRepository projects, IWebhookReposito
         return await webhooks.GetMetricsAsync(projectId, ct);
     }
 
+    public async Task<int?> RetryFailedAsync(Guid projectId, CancellationToken ct)
+    {
+        if (await projects.FindByIdAsync(projectId, ct) is null) return null;
+        return await webhooks.RetryFailedAsync(projectId, clock.GetUtcNow(), ct);
+    }
+
     private static WebhookSummary Map(WebhookEndpoint item) => new(item.Id, item.ProjectId, item.Name, item.EndpointUrl, item.Events, !string.IsNullOrEmpty(item.Secret), item.IsEnabled, item.CreatedAt);
 }

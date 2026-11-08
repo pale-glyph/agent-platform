@@ -36,8 +36,17 @@ public sealed class EfWebhookRepository(PlatformDbContext db) : IWebhookReposito
 
     public async Task CancelPendingForWebhookAsync(Guid webhookId, DateTimeOffset now, CancellationToken ct)
     {
-        var pending = await db.WebhookDeliveries.Where(item => item.WebhookId == webhookId && item.Status == WebhookDeliveryStatus.Pending).ToArrayAsync(ct);
-        foreach (var delivery in pending) delivery.Cancel(now);
+        var outstanding = await db.WebhookDeliveries.Where(item => item.WebhookId == webhookId && (item.Status == WebhookDeliveryStatus.Pending || item.Status == WebhookDeliveryStatus.Failed)).ToArrayAsync(ct);
+        foreach (var delivery in outstanding) delivery.Cancel(now);
+    }
+
+    public async Task<int> RetryFailedAsync(Guid projectId, DateTimeOffset now, CancellationToken ct)
+    {
+        var failed = await db.WebhookDeliveries.Where(item => item.ProjectId == projectId && item.Status == WebhookDeliveryStatus.Failed &&
+            db.WebhookEndpoints.Any(webhook => webhook.Id == item.WebhookId && webhook.IsEnabled)).ToArrayAsync(ct);
+        foreach (var delivery in failed) delivery.RetryManually(now);
+        await db.SaveChangesAsync(ct);
+        return failed.Length;
     }
 
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);

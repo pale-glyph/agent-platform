@@ -179,6 +179,8 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .webhook-disabled { background: #3a2e25; border-radius: 999px; color: #f0c49a; font-size: 0.66rem; margin-left: 0.5rem; padding: 0.16rem 0.45rem; vertical-align: middle; }
 .webhook-deliveries { border-top: 1px solid #2a3443; margin-top: 0.5rem; }
 .deliveries-heading { align-items: center; display: flex; justify-content: space-between; padding: 1.25rem 1.5rem 0.9rem; }
+.delivery-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.25rem; justify-content: flex-end; }
+.delivery-actions button:disabled { cursor: not-allowed; opacity: 0.45; }
 .deliveries-heading .eyebrow { margin: 0 0 0.3rem; }
 .deliveries-heading h3 { font-size: 1rem; margin: 0; }
 .delivery-table-wrap { overflow: auto; }

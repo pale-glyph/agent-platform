@@ -87,6 +87,7 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
         {
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
             item.Property<int>("AttemptCount").HasColumnType("integer").HasColumnName("attempt_count");
+            item.Property<int>("RetryAttemptCount").HasColumnType("integer").HasColumnName("retry_attempt_count");
             item.Property<DateTimeOffset?>("ClaimedUntil").HasColumnType("timestamp with time zone").HasColumnName("claimed_until");
             item.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone").HasColumnName("completed_at");
             item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");

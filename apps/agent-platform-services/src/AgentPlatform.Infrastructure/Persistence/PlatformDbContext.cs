@@ -91,6 +91,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         delivery.Property(item => item.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
         delivery.Property(item => item.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         delivery.Property(item => item.AttemptCount).HasColumnName("attempt_count").IsRequired();
+        delivery.Property(item => item.RetryAttemptCount).HasColumnName("retry_attempt_count").IsRequired();
         delivery.Property(item => item.NextAttemptAt).HasColumnName("next_attempt_at").IsRequired();
         delivery.Property(item => item.ClaimedUntil).HasColumnName("claimed_until");
         delivery.Property(item => item.LastStatusCode).HasColumnName("last_status_code");
