@@ -53,7 +53,10 @@ public static class PlatformMcpEndpoint
     {
         if (!request.TryGetProperty("params", out var parameters) || parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty("name", out var toolName) || toolName.ValueKind != JsonValueKind.String)
             return ToolResponse(Error("Tool name is required."));
-        return ToolResponse(await ExecuteToolAsync(toolName.GetString()!, parameters, projects, agents, mcpServers, webhooks, ct));
+        var arguments = parameters.TryGetProperty("arguments", out var nestedArguments) && nestedArguments.ValueKind == JsonValueKind.Object
+            ? nestedArguments
+            : parameters;
+        return ToolResponse(await ExecuteToolAsync(toolName.GetString()!, arguments, projects, agents, mcpServers, webhooks, ct));
     }
 
     private static object ToolResponse(ToolResult result) => new { content = new[] { new { type = "text", text = JsonSerializer.Serialize(result.Value, JsonOptions) } }, isError = result.IsError };
@@ -134,8 +137,8 @@ public static class PlatformMcpEndpoint
         Tool("create_mcp_server", "Create a project MCP server.", new { projectId = "UUID", name = "string", endpoint = "HTTP(S) URL", cacheTtlSeconds = "integer", security = "None or ApiKey", apiKey = "string when security is ApiKey" }, "projectId", "name", "endpoint", "cacheTtlSeconds", "security"),
         Tool("update_mcp_server", "Update a project MCP server. Omit apiKey to retain its existing key.", new { projectId = "UUID", serverId = "UUID", name = "string", endpoint = "HTTP(S) URL", cacheTtlSeconds = "integer", security = "None or ApiKey", apiKey = "string" }, "projectId", "serverId", "name", "endpoint", "cacheTtlSeconds", "security"),
         Tool("delete_mcp_server", "Delete a project MCP server and its associated tool grants.", new { projectId = "UUID", serverId = "UUID" }, "projectId", "serverId"),
-        Tool("create_webhook", "Create a project webhook.", new { projectId = "UUID", name = "string", endpointUrl = "HTTPS URL", secret = "string", events = "array of event names" }, "projectId", "name", "endpointUrl", "secret", "events"),
-        Tool("update_webhook", "Update a project webhook. Omit secret to retain its existing signing secret.", new { projectId = "UUID", webhookId = "UUID", name = "string", endpointUrl = "HTTPS URL", secret = "string", events = "array of event names", enabled = "boolean" }, "projectId", "webhookId", "name", "endpointUrl", "events", "enabled"),
+        Tool("create_webhook", "Create a project webhook. Use HTTPS except for loopback or the internal admin service.", new { projectId = "UUID", name = "string", endpointUrl = "HTTP(S) URL", secret = "string", events = "array of event names" }, "projectId", "name", "endpointUrl", "secret", "events"),
+        Tool("update_webhook", "Update a project webhook. Omit secret to retain its existing signing secret. Use HTTPS except for loopback or the internal admin service.", new { projectId = "UUID", webhookId = "UUID", name = "string", endpointUrl = "HTTP(S) URL", secret = "string", events = "array of event names", enabled = "boolean" }, "projectId", "webhookId", "name", "endpointUrl", "events", "enabled"),
         Tool("delete_webhook", "Delete a project webhook.", new { projectId = "UUID", webhookId = "UUID" }, "projectId", "webhookId"),
     ];
 
