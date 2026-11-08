@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+
+node_modules/
+.next/
+out/
+coverage/
+
+.env
+.env.*
+!.env.example
