@@ -10,3 +10,5 @@ For host-based development:
 dotnet run --project apps/agent-platform-services/src/AgentPlatform.Api
 dotnet run --project apps/agent-platform-services/src/AgentPlatform.Worker
 ```
+
+The API also exposes a Model Context Protocol endpoint at `POST /mcp`. It supports initialization, tool discovery, and the `list_projects` tool.

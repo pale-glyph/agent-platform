@@ -3,6 +3,7 @@ using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
 using AgentPlatform.Application.Mcp;
 using AgentPlatform.Domain.Mcp;
+using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.MapHealthChecks("/health");
+app.MapPlatformMcp();
 
 var llmConfigurations = app.MapGroup("/api/llm-configurations");
 llmConfigurations.MapGet("/", async (LlmConfigurationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct)));

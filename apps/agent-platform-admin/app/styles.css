@@ -149,3 +149,20 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 }
 @media (max-width: 420px) { .breadcrumb span:first-child, .breadcrumb span:nth-child(2) { display: none; } h1 { font-size: 2.15rem; } article { min-height: 6.5rem; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+.modal-backdrop { align-items: center; background: rgb(4 7 12 / 78%); display: flex; inset: 0; justify-content: center; padding: 1.25rem; position: fixed; z-index: 50; }
+.tools-modal { background: #151c27; border: 1px solid #3b4657; border-radius: 0.85rem; box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 45%); display: flex; flex-direction: column; max-height: min(86vh, 58rem); max-width: 76rem; overflow: hidden; width: 100%; }
+.tools-modal-heading { align-items: flex-start; border-bottom: 1px solid #2a3443; display: flex; justify-content: space-between; padding: 1.35rem 1.5rem; }
+.tools-modal-heading .eyebrow { margin-bottom: 0.4rem; }
+.tools-modal-heading h2 { font-size: 1.25rem; margin: 0; }
+.tools-modal-heading p:last-child { color: #8491a3; font-size: 0.8rem; margin: 0.45rem 0 0; overflow-wrap: anywhere; }
+.modal-close { background: transparent; border: 0; border-radius: 0.4rem; color: #aab5c8; font-size: 1.6rem; height: 2.2rem; line-height: 1; width: 2.2rem; }
+.modal-close:hover, .modal-close:focus-visible { background: #263142; color: #fff; outline: 2px solid #95e8b4; }
+.tools-modal-content { min-height: 12rem; overflow: auto; }
+.tools-table-wrap { overflow: auto; }
+.tools-table { border-collapse: collapse; min-width: 46rem; text-align: left; width: 100%; }
+.tools-table th, .tools-table td { border-bottom: 1px solid #252f3e; padding: 0.85rem 1rem; vertical-align: top; }
+.tools-table thead th { background: #111722; color: #95e8b4; font-size: 0.72rem; letter-spacing: 0.06em; position: sticky; text-transform: uppercase; top: 0; }
+.tools-table tbody th { color: #edf1f8; font-size: 0.86rem; min-width: 10rem; }
+.tools-table tbody td { color: #b6c0ce; font-size: 0.82rem; line-height: 1.5; min-width: 13rem; }
+.tools-table pre { background: #0e141e; border: 1px solid #2a3443; border-radius: 0.45rem; color: #d6e4f5; font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; max-height: 15rem; min-width: 20rem; overflow: auto; padding: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tools-modal-footer { border-top: 1px solid #2a3443; display: flex; justify-content: flex-end; padding: 0.75rem 1.25rem; }
