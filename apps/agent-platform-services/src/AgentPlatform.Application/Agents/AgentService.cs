@@ -5,7 +5,7 @@ namespace AgentPlatform.Application.Agents;
 
 public sealed record AgentSummary(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, DateTimeOffset CreatedAt);
 
-public sealed class AgentService(IProjectRepository projects, IAgentRepository agents, TimeProvider timeProvider)
+public sealed class AgentService(IProjectRepository projects, IAgentRepository agents, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<AgentSummary>?> ListAsync(Guid projectId, CancellationToken cancellationToken)
     {
@@ -18,6 +18,7 @@ public sealed class AgentService(IProjectRepository projects, IAgentRepository a
         if (await projects.FindByIdAsync(projectId, cancellationToken) is null) return null;
         var agent = new AgentDefinition(Guid.NewGuid(), projectId, name, description, systemPrompt, timeProvider.GetUtcNow());
         await agents.AddAsync(agent, cancellationToken);
+        await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.AgentCreated, ToSummary(agent), cancellationToken);
         await agents.SaveChangesAsync(cancellationToken);
         return ToSummary(agent);
     }
@@ -27,6 +28,7 @@ public sealed class AgentService(IProjectRepository projects, IAgentRepository a
         var agent = await agents.FindByIdAsync(projectId, agentId, cancellationToken);
         if (agent is null) return null;
         agent.Update(name, description, systemPrompt);
+        await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.AgentUpdated, ToSummary(agent), cancellationToken);
         await agents.SaveChangesAsync(cancellationToken);
         return ToSummary(agent);
     }
@@ -35,6 +37,7 @@ public sealed class AgentService(IProjectRepository projects, IAgentRepository a
     {
         var agent = await agents.FindByIdAsync(projectId, agentId, cancellationToken);
         if (agent is null) return false;
+        await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.AgentDeleted, ToSummary(agent), cancellationToken);
         agents.Remove(agent);
         await agents.SaveChangesAsync(cancellationToken);
         return true;

@@ -3,7 +3,7 @@ using AgentPlatform.Domain.Projects;
 
 namespace AgentPlatform.Application.Projects;
 
-public sealed class ProjectService(IProjectRepository projects, TimeProvider timeProvider)
+public sealed class ProjectService(IProjectRepository projects, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<ProjectSummary>> ListAsync(CancellationToken cancellationToken)
     {
@@ -34,8 +34,10 @@ public sealed class ProjectService(IProjectRepository projects, TimeProvider tim
         }
 
         project.Rename(name);
+        var summary = ToSummary(project);
+        await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.ProjectUpdated, summary, cancellationToken);
         await projects.SaveChangesAsync(cancellationToken);
-        return ToSummary(project);
+        return summary;
     }
 
     public async Task<bool> DeleteAsync(Guid projectId, CancellationToken cancellationToken)

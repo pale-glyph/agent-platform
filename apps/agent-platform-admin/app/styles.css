@@ -166,3 +166,35 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .tools-table tbody td { color: #b6c0ce; font-size: 0.82rem; line-height: 1.5; min-width: 13rem; }
 .tools-table pre { background: #0e141e; border: 1px solid #2a3443; border-radius: 0.45rem; color: #d6e4f5; font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; max-height: 15rem; min-width: 20rem; overflow: auto; padding: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tools-modal-footer { border-top: 1px solid #2a3443; display: flex; justify-content: flex-end; padding: 0.75rem 1.25rem; }
+.webhook-metrics { border-bottom: 1px solid #2a3443; display: grid; gap: 1px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.webhook-metrics > div { background: #111722; display: grid; gap: 0.45rem; padding: 1.1rem 1.4rem; }
+.webhook-metrics span { color: #8491a3; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.webhook-metrics strong { color: #edf1f8; font-size: 1.45rem; }
+.webhook-event-options { border: 1px solid #354153; border-radius: 0.5rem; display: grid; gap: 0.55rem 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0.5rem 0; padding: 0.8rem 1rem 1rem; }
+.webhook-event-options legend { color: #c9d2df; font-size: 0.8rem; font-weight: 700; padding: 0 0.3rem; }
+.webhook-event-options label { align-items: center; color: #b6c0ce; display: flex; font-size: 0.82rem; gap: 0.55rem; }
+.webhook-event-options input { accent-color: #95e8b4; height: 1rem; width: 1rem; }
+.webhook-item-copy { display: grid; gap: 0.22rem; min-width: 0; }
+.webhook-item-copy small { overflow-wrap: anywhere; }
+.webhook-disabled { background: #3a2e25; border-radius: 999px; color: #f0c49a; font-size: 0.66rem; margin-left: 0.5rem; padding: 0.16rem 0.45rem; vertical-align: middle; }
+.webhook-deliveries { border-top: 1px solid #2a3443; margin-top: 0.5rem; }
+.deliveries-heading { align-items: center; display: flex; justify-content: space-between; padding: 1.25rem 1.5rem 0.9rem; }
+.deliveries-heading .eyebrow { margin: 0 0 0.3rem; }
+.deliveries-heading h3 { font-size: 1rem; margin: 0; }
+.delivery-table-wrap { overflow: auto; }
+.delivery-table { border-collapse: collapse; min-width: 56rem; text-align: left; width: 100%; }
+.delivery-table th, .delivery-table td { border-top: 1px solid #252f3e; padding: 0.75rem 0.9rem; vertical-align: top; }
+.delivery-table thead th { background: #111722; color: #8491a3; font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.delivery-table tbody th { color: #edf1f8; font-size: 0.8rem; }
+.delivery-table td { color: #b6c0ce; font-size: 0.77rem; line-height: 1.45; }
+.delivery-status { border-radius: 999px; display: inline-block; font-size: 0.68rem; font-weight: 750; padding: 0.2rem 0.48rem; }
+.delivery-status.pending { background: #3b3524; color: #f0d99a; }
+.delivery-status.failed { background: #482634; color: #ffb9c6; }
+.delivery-error { color: #8491a3; display: block; margin-top: 0.2rem; max-width: 18rem; overflow-wrap: anywhere; }
+.compact-empty { min-height: 8rem; }
+.webhook-security-note { background: #111722; border-bottom: 1px solid #2a3443; color: #9daabc; font-size: 0.78rem; line-height: 1.55; margin: 0; padding: 0.85rem 1.5rem; }
+.webhook-security-note code { color: #cfe8d5; font: 0.75rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.webhook-url-label { align-items: center; display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; justify-content: space-between; }
+.webhook-url-label label { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.webhook-url-label small { color: #8491a3; font-weight: 400; }
+@media (max-width: 760px) { .webhook-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .webhook-event-options { grid-template-columns: 1fr; } .deliveries-heading { padding-left: 1rem; padding-right: 1rem; } }
