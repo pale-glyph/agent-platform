@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 namespace AgentPlatform.Worker;
 
 public sealed class ExecutionWorker(ILogger<ExecutionWorker> logger) : BackgroundService

@@ -89,7 +89,7 @@ stateDiagram-v2
 | Administration UI | Next.js (React) + TypeScript | Project administration, CRUD, agent-instance conversations, and run operations |
 | Data access | Entity Framework Core *(planned)* | Migrations and persistence mapping |
 | Observability | OpenTelemetry *(planned)* | Traces, metrics, and structured diagnostics |
-| Local infrastructure | Docker Compose *(planned)* | Reproducible PostgreSQL and NATS development environment |
+| Local stack | Docker Compose | Reproducible API, worker, administration UI, PostgreSQL, and NATS environment |
 
 ## Design documents
 
@@ -101,46 +101,50 @@ stateDiagram-v2
 
 This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI shell, and local PostgreSQL/NATS infrastructure. Persistence, message handling, authentication, and feature endpoints are the next implementation stages.
 
-## Planned project layout
+## Project layout
 
 ```text
-src/
-  AgentPlatform.Api/            HTTP endpoints and control-plane services
-  AgentPlatform.Application/    Use cases, contracts, and domain orchestration
-  AgentPlatform.Domain/         Domain model and business rules
-  AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
-  AgentPlatform.Worker/         Background execution host
 apps/
   agent-platform-admin/         Next.js administration UI
+  agent-platform-services/
+    src/
+      AgentPlatform.Api/        HTTP endpoints and control-plane services
+      AgentPlatform.Application/ Use cases, contracts, and domain orchestration
+      AgentPlatform.Domain/      Domain model and business rules
+      AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
+      AgentPlatform.Worker/      Background execution host
 tests/
   AgentPlatform.UnitTests/
   AgentPlatform.IntegrationTests/
-docker-compose.yml              Local PostgreSQL and NATS JetStream services
+docker-compose.yml              Local application and infrastructure stack
+run.sh                          Builds images and starts the local stack
 AGENTS.md                       Repository instructions for coding agents
 docs/design/                    Architecture and design records
 ```
 
-## Local development (target workflow)
+## Local development
 
 Prerequisites:
 
-- .NET SDK (current LTS)
 - Docker with Docker Compose
 
-Start local infrastructure and the backend hosts:
+Build the API, worker, and administration UI images, then start the complete local stack:
 
 ```bash
-docker compose up -d
+./run.sh -d
 docker compose ps
-dotnet restore
-dotnet test
-dotnet run --project src/AgentPlatform.Api
-dotnet run --project src/AgentPlatform.Worker
 ```
 
-In another terminal, install and start the administration UI:
+The administration UI is available at `http://localhost:3000` and the API at `http://localhost:8080` (including its health endpoint at `/health`). PostgreSQL, NATS, and NATS monitoring remain exposed on ports 5432, 4222, and 8222 respectively.
+
+For host-based development, install the .NET SDK and Node.js as well. The backend projects are under `apps/agent-platform-services/src`:
 
 ```bash
+dotnet restore
+dotnet test
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.Api
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.Worker
+
 cd apps/agent-platform-admin
 npm install
 npm run dev
@@ -154,7 +158,7 @@ Nats__Url=nats://localhost:4222
 Nats__StreamName=AGENT_PLATFORM
 ```
 
-The Compose stack exposes PostgreSQL at `localhost:5432`, NATS at `localhost:4222`, and the NATS monitoring endpoint at `http://localhost:8222`. Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
+Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
 Never commit credentials or provider keys. Use user secrets or a local `.env` file excluded from source control.
 

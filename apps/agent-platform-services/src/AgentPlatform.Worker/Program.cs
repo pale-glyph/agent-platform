@@ -1,5 +1,7 @@
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Worker;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
 

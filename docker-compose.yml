@@ -1,4 +1,47 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Platform: Host=postgres;Port=5432;Database=agent_platform;Username=agent;Password=agent
+      Nats__Url: nats://nats:4222
+      Nats__StreamName: AGENT_PLATFORM
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: worker
+    environment:
+      ConnectionStrings__Platform: Host=postgres;Port=5432;Database=agent_platform;Username=agent;Password=agent
+      Nats__Url: nats://nats:4222
+      Nats__StreamName: AGENT_PLATFORM
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-admin/Dockerfile
+    ports:
+      - "3010:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -6,7 +49,7 @@ services:
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: agent
     ports:
-      - "5432:5432"
+      - "5420:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,9 +62,6 @@ services:
   nats:
     image: nats:2.10-alpine
     command: ["-js", "-sd", "/data", "-m", "8222"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
     volumes:
       - nats-data:/data
     healthcheck:
