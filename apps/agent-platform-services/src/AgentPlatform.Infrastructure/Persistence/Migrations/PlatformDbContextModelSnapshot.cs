@@ -16,6 +16,17 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
         modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
         modelBuilder.HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+        modelBuilder.Entity("AgentPlatform.Domain.Llm.LlmConfiguration", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("name");
+            item.Property<string>("ProviderUrl").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("provider_url");
+            item.Property<string>("ModelName").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)").HasColumnName("model_name");
+            item.Property<string>("ApiKey").IsRequired().HasMaxLength(10000).HasColumnType("character varying(10000)").HasColumnName("api_key");
+            item.HasKey("Id"); item.HasIndex("Name").IsUnique(); item.ToTable("llm_configurations");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentDefinition", item =>
         {
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
