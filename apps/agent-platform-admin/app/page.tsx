@@ -952,10 +952,6 @@ export default function HomePage() {
             <span className="nav-icon">✦</span>
             <span>LLM configurations</span>
           </button>
-          <a href="#event-streams">
-            <span className="nav-icon">⌁</span>
-            <span>Event streams</span>
-          </a>
         </nav>
         {page === "projects" && (
           <section className="project-nav" aria-labelledby="project-nav-title">
