@@ -10,6 +10,13 @@ public static class PlatformMcpEndpoint
 
     public static IEndpointRouteBuilder MapPlatformMcp(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/mcp", () => Results.Ok(new
+        {
+            name = "agent-platform",
+            transport = "Streamable HTTP JSON-RPC",
+            message = "Send MCP JSON-RPC requests to this endpoint with POST. Start with the initialize method.",
+            protocolVersion = ProtocolVersion,
+        }));
         endpoints.MapPost("/mcp", HandleAsync);
         return endpoints;
     }
