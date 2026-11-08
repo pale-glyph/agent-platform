@@ -15,7 +15,7 @@ type Tab = "overview" | "agents" | "servers" | "webhooks" | "instances";
 
 const webhookEventTypes = [
   ["project.updated", "Project updated"],
-  ["agent.created", "Agent created"], ["agent.updated", "Agent updated"], ["agent.deleted", "Agent deleted"],
+  ["agent.created", "Agent created"], ["agent.updated", "Agent updated"], ["agent.deleted", "Agent deleted"], ["agent.message", "Agent message"], ["agent.tool_call", "Agent tool call"],
   ["mcp_server.created", "MCP server created"], ["mcp_server.updated", "MCP server updated"], ["mcp_server.deleted", "MCP server deleted"],
 ] as const;
 
@@ -62,7 +62,7 @@ export default function HomePage() {
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
-  const [webhookEvents, setWebhookEvents] = useState<string[]>(["agent.created", "agent.updated", "agent.deleted"]);
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(["agent.created", "agent.updated", "agent.deleted", "agent.message", "agent.tool_call"]);
   const [isRetryingWebhooks, setIsRetryingWebhooks] = useState(false);
   const [llmConfigurations, setLlmConfigurations] = useState<LlmConfiguration[]>([]);
   const [isLlmFormOpen, setIsLlmFormOpen] = useState(false);
@@ -220,7 +220,7 @@ export default function HomePage() {
     finally { setIsLoadingMcpTools(false); }
   };
   const openWebhookForm = (webhook?: Webhook) => {
-    setEditingWebhook(webhook ?? null); setWebhookName(webhook?.name ?? ""); setWebhookUrl(webhook?.endpointUrl ?? ""); setWebhookSecret(""); setWebhookEvents(webhook?.events ?? ["agent.created", "agent.updated", "agent.deleted"]); setIsWebhookFormOpen(true); setMessage(null);
+    setEditingWebhook(webhook ?? null); setWebhookName(webhook?.name ?? ""); setWebhookUrl(webhook?.endpointUrl ?? ""); setWebhookSecret(""); setWebhookEvents(webhook?.events ?? ["agent.created", "agent.updated", "agent.deleted", "agent.message", "agent.tool_call"]); setIsWebhookFormOpen(true); setMessage(null);
   };
   const saveWebhook = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (!selectedProjectId) return; setIsSaving(true); setMessage(null);

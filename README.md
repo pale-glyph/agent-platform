@@ -99,7 +99,14 @@ stateDiagram-v2
 
 ## Repository status
 
-This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. The built-in platform MCP endpoint can list projects, retrieve a project with its agents, MCP servers, and webhooks, and create, update, or delete those resources through the control-plane services. An agent may select one platform LLM configuration and receives MCP access only through explicit, persisted per-tool grants to servers in its project. The UI marks an agent without an LLM as misconfigured. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Message handling, authentication, and the remaining feature endpoints are the next implementation stages.
+This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. The built-in platform MCP endpoint can list projects, retrieve a project with its agents, MCP servers, and webhooks, and create, update, or delete those resources through the control-plane services. An agent may select one platform LLM configuration and receives MCP access only through explicit, persisted per-tool grants to servers in its project. The UI marks an agent without an LLM as misconfigured. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Agent instances can now be triggered with an initial prompt; their durable, cursor-paginated timeline records messages and tool calls. Operators may send a queued message (one pending message at a time) or a steering message, which records a cooperative cancellation request for an active execution. Every stored message and tool call creates an `agent.message` or `agent.tool_call` webhook delivery in the same database transaction. Worker-side model invocation and MCP tool execution, plus authentication, remain the next implementation stages.
+
+The execution endpoints are:
+
+- `POST /api/projects/{projectId}/agents/{agentId}/instances` with `{ "initialPrompt": "..." }`
+- `GET /api/projects/{projectId}/agent-instances/{instanceId}/timeline?afterSequence={cursor}&limit={1..100}`
+- `POST /api/projects/{projectId}/agent-instances/{instanceId}/messages` with `{ "content": "...", "delivery": "Queued" | "Steering" }`
+- `POST /api/projects/{projectId}/agent-instances/{instanceId}/tool-calls` for an execution worker to durably record a tool invocation.
 
 ## Project layout
 
