@@ -46,7 +46,7 @@ Agent Platform manages and executes asynchronous AI-agent work, including operat
 
 ## Verification
 
-- Run formatting, build, and relevant tests before considering a change complete.
+- Run `dotnet build AgentPlatform.sln`, `npm run typecheck` in `apps/agent-platform-admin`, formatting, and relevant tests before considering a change complete.
 - Add unit tests for domain rules and integration tests for PostgreSQL/NATS boundaries when they are introduced.
 - Update `README.md` when developer setup, configuration, architecture, or user-visible behavior changes.
 

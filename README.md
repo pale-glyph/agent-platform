@@ -99,7 +99,7 @@ stateDiagram-v2
 
 ## Repository status
 
-This repository is at the foundation stage. The local infrastructure stack is available now; application code, migrations, and CI will be added incrementally. Commands that reference `src/` are a target workflow until the solution scaffold is committed.
+This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI shell, and local PostgreSQL/NATS infrastructure. Persistence, message handling, authentication, and feature endpoints are the next implementation stages.
 
 ## Planned project layout
 
@@ -127,7 +127,7 @@ Prerequisites:
 - .NET SDK (current LTS)
 - Docker with Docker Compose
 
-Once the initial services are committed, a local session will look like this:
+Start local infrastructure and the backend hosts:
 
 ```bash
 docker compose up -d
@@ -136,6 +136,14 @@ dotnet restore
 dotnet test
 dotnet run --project src/AgentPlatform.Api
 dotnet run --project src/AgentPlatform.Worker
+```
+
+In another terminal, install and start the administration UI:
+
+```bash
+cd apps/agent-platform-admin
+npm install
+npm run dev
 ```
 
 Configuration will be supplied through standard .NET configuration providers. These variables illustrate the expected local defaults:
