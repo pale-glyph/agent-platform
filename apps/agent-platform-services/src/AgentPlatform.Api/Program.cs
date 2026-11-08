@@ -147,8 +147,8 @@ mcpServers.MapGet("/{serverId:guid}/tools", async (Guid projectId, Guid serverId
         var definitions = await service.GetToolDefinitionsAsync(projectId, serverId, ct);
         return definitions is null ? Results.NotFound() : Results.Content(definitions.ToolsJson, "application/json");
     }
-    catch (HttpRequestException exception) { return Results.Problem("The MCP server could not be reached.", statusCode: StatusCodes.Status502BadGateway, detail: exception.Message); }
-    catch (InvalidOperationException exception) { return Results.Problem("The MCP server returned an invalid tool definition response.", statusCode: StatusCodes.Status502BadGateway, detail: exception.Message); }
+    catch (HttpRequestException) { return Results.Problem(title: "The MCP server could not be reached.", statusCode: StatusCodes.Status502BadGateway); }
+    catch (InvalidOperationException) { return Results.Problem(title: "The MCP server returned an invalid tool definition response.", statusCode: StatusCodes.Status502BadGateway); }
 });
 
 app.Run();
