@@ -135,6 +135,7 @@ agents.MapPost("/{agentId:guid}/instances", async (Guid projectId, Guid agentId,
 });
 
 var agentInstances = projects.MapGroup("/{projectId:guid}/agent-instances");
+agentInstances.MapGet("/", async (Guid projectId, AgentInstanceService service, CancellationToken ct) => Results.Ok(await service.ListAsync(projectId, ct)));
 agentInstances.MapGet("/{instanceId:guid}/timeline", async (Guid projectId, Guid instanceId, long? afterSequence, int? limit, AgentInstanceService service, CancellationToken ct) =>
 {
     try

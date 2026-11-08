@@ -209,4 +209,28 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .webhook-url-label { align-items: center; display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; justify-content: space-between; }
 .webhook-url-label label { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .webhook-url-label small { color: #8491a3; font-weight: 400; }
+.conversation-note { color: #9daabc; font-size: 0.82rem; line-height: 1.5; margin: 0; padding: 0.5rem 1.5rem 1rem; }
+.conversation-layout { border-top: 1px solid #2a3443; display: grid; grid-template-columns: minmax(15rem, 0.7fr) minmax(0, 2fr); min-height: 34rem; }
+.conversation-list { background: #111722; border-right: 1px solid #2a3443; display: flex; flex-direction: column; gap: 0.65rem; padding: 1rem; }
+.conversation-list label, .conversation-compose label { color: #aab5c8; font-size: 0.76rem; font-weight: 700; }
+.conversation-list select, .conversation-list textarea, .conversation-compose select, .conversation-compose textarea { background: #0d131d; border: 1px solid #354153; border-radius: 0.45rem; color: #edf1f8; font: inherit; padding: 0.65rem; width: 100%; }
+.conversation-list textarea { min-height: 6rem; resize: vertical; }
+.conversation-list form { display: grid; gap: 0.55rem; }
+.conversation-history { display: grid; gap: 0.35rem; margin-top: 0.35rem; max-height: 17rem; overflow: auto; }
+.conversation-history button { background: transparent; border: 1px solid transparent; border-radius: 0.45rem; color: #c9d2df; display: grid; gap: 0.2rem; padding: 0.6rem; text-align: left; }
+.conversation-history button:hover, .conversation-history button:focus-visible, .conversation-history button.active { background: #202b3b; border-color: #3b5260; outline: none; }
+.conversation-history small { color: #8491a3; font-size: 0.7rem; }
+.conversation-thread { display: flex; flex-direction: column; min-width: 0; padding: 1rem; }
+.conversation-thread > ol { display: grid; gap: 0.75rem; list-style: none; margin: 0; overflow: auto; padding: 0 0 1rem; }
+.conversation-entry { background: #202b3b; border: 1px solid #354153; border-radius: 0.6rem; color: #dce5ef; max-width: 85%; padding: 0.75rem 0.9rem; }
+.conversation-entry.operator { align-self: end; background: #20372d; border-color: #386047; }
+.conversation-entry strong { display: flex; font-size: 0.78rem; gap: 0.45rem; justify-content: space-between; }
+.conversation-entry strong small { color: #9fb4a8; font-size: 0.67rem; font-weight: 500; }
+.conversation-entry p { line-height: 1.5; margin: 0.45rem 0 0; white-space: pre-wrap; }
+.conversation-entry pre { background: #0d131d; border-radius: 0.35rem; font-size: 0.72rem; margin: 0.5rem 0 0; overflow: auto; padding: 0.55rem; white-space: pre-wrap; }
+.conversation-compose { border-top: 1px solid #2a3443; display: grid; gap: 0.55rem; margin-top: auto; padding-top: 0.85rem; }
+.conversation-compose textarea { min-height: 4.5rem; resize: vertical; }
+.conversation-compose > div { align-items: center; display: flex; gap: 0.6rem; justify-content: space-between; }
+.conversation-compose select { max-width: 15rem; }
+@media (max-width: 760px) { .conversation-layout { grid-template-columns: 1fr; } .conversation-list { border-bottom: 1px solid #2a3443; border-right: 0; } .conversation-history { max-height: 10rem; } .conversation-entry { max-width: 100%; } }
 @media (max-width: 760px) { .webhook-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .webhook-event-options { grid-template-columns: 1fr; } .deliveries-heading { padding-left: 1rem; padding-right: 1rem; } }

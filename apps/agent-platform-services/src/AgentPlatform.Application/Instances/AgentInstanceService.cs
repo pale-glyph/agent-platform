@@ -11,6 +11,9 @@ public sealed record SubmittedMessage(AgentExecutionEntrySummary Entry, bool Can
 
 public sealed class AgentInstanceService(IAgentRepository agents, IAgentInstanceRepository instances, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
 {
+    public async Task<IReadOnlyList<AgentInstanceSummary>> ListAsync(Guid projectId, CancellationToken cancellationToken) =>
+        (await instances.ListByProjectAsync(projectId, cancellationToken)).Select(ToSummary).ToArray();
+
     public async Task<AgentInstanceSummary?> TriggerAsync(Guid projectId, Guid agentId, string initialPrompt, CancellationToken cancellationToken)
     {
         if (await agents.FindByIdAsync(projectId, agentId, cancellationToken) is null) return null;
