@@ -128,6 +128,12 @@ Prerequisites:
 
 - Docker with Docker Compose
 
+Create your local configuration from the tracked template, then update any values required for your machine. `.env` is deliberately ignored by Git.
+
+```bash
+cp example.env .env
+```
+
 Build the API, worker, and administration UI images, then start the complete local stack:
 
 ```bash
@@ -135,7 +141,7 @@ Build the API, worker, and administration UI images, then start the complete loc
 docker compose ps
 ```
 
-The administration UI is available at `http://localhost:3000` and the API at `http://localhost:8080` (including its health endpoint at `/health`). PostgreSQL, NATS, and NATS monitoring remain exposed on ports 5432, 4222, and 8222 respectively.
+The configured host ports are defined in `.env`; the template exposes the administration UI at `http://localhost:3010` and PostgreSQL at `localhost:5420`.
 
 For host-based development, install the .NET SDK and Node.js as well. The backend projects are under `apps/agent-platform-services/src`:
 
@@ -150,17 +156,11 @@ npm install
 npm run dev
 ```
 
-Configuration will be supplied through standard .NET configuration providers. These variables illustrate the expected local defaults:
-
-```bash
-ConnectionStrings__Platform=Host=localhost;Port=5432;Database=agent_platform;Username=agent;Password=agent
-Nats__Url=nats://localhost:4222
-Nats__StreamName=AGENT_PLATFORM
-```
+Docker Compose passes the .NET connection and NATS settings from `.env` as standard environment variables. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
 
 Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
-Never commit credentials or provider keys. Use user secrets or a local `.env` file excluded from source control.
+Never commit credentials or provider keys. Keep them in the ignored `.env` file or a local secret manager.
 
 ## Engineering principles
 
