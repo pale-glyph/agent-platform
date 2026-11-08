@@ -33,7 +33,7 @@ public sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactory)
         var calls = message.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array
             ? toolCalls.EnumerateArray().Select(ParseToolCall).ToArray()
             : [];
-        return new RuntimeCompletion(content, calls);
+        return new RuntimeCompletion(content, calls, ParseUsage(document.RootElement));
     }
 
     private static IReadOnlyDictionary<string, object?> ToWireMessage(RuntimeChatMessage message)
@@ -49,6 +49,24 @@ public sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactory)
         var function = value.GetProperty("function");
         return new RuntimeToolCall(value.GetProperty("id").GetString() ?? throw new InvalidOperationException("The model returned a tool call without an id."), function.GetProperty("name").GetString() ?? throw new InvalidOperationException("The model returned a tool call without a name."), function.GetProperty("arguments").GetString() ?? "{}");
     }
+
+    private static RuntimeTokenUsage ParseUsage(JsonElement response)
+    {
+        if (!response.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object)
+            return RuntimeTokenUsage.Empty;
+
+        var input = ReadTokenCount(usage, "prompt_tokens");
+        var output = ReadTokenCount(usage, "completion_tokens");
+        var total = ReadTokenCount(usage, "total_tokens");
+        var cachedInput = usage.TryGetProperty("prompt_tokens_details", out var promptDetails) && promptDetails.ValueKind == JsonValueKind.Object
+            ? ReadTokenCount(promptDetails, "cached_tokens") : 0;
+        var reasoning = usage.TryGetProperty("completion_tokens_details", out var completionDetails) && completionDetails.ValueKind == JsonValueKind.Object
+            ? ReadTokenCount(completionDetails, "reasoning_tokens") : 0;
+        return new RuntimeTokenUsage(input, cachedInput, output, reasoning, total == 0 ? input + output : total);
+    }
+
+    private static long ReadTokenCount(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out var value) && value.TryGetInt64(out var count) && count > 0 ? count : 0;
 
     private static Uri CompletionEndpoint(string providerUrl)
     {

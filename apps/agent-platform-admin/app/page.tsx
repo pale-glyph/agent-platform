@@ -90,6 +90,15 @@ type TimelineEntry = {
   createdAt: string;
 };
 type TimelinePage = { items: TimelineEntry[]; nextCursor: number | null };
+type UsageBucket = {
+  bucketStart: string;
+  callCount: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  totalTokens: number;
+};
 type Tab = "overview" | "agents" | "servers" | "webhooks" | "instances";
 
 const webhookEventTypes = [
@@ -182,7 +191,12 @@ export default function HomePage() {
   const [providerUrl, setProviderUrl] = useState("");
   const [modelName, setModelName] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [page, setPage] = useState<"projects" | "chat" | "llm">("projects");
+  const [page, setPage] = useState<"projects" | "chat" | "llm" | "usage">("projects");
+  const [platformUsage, setPlatformUsage] = useState<UsageBucket[]>([]);
+  const [projectUsage, setProjectUsage] = useState<UsageBucket[]>([]);
+  const [agentUsage, setAgentUsage] = useState<Record<string, UsageBucket[]>>({});
+  const [llmUsage, setLlmUsage] = useState<Record<string, UsageBucket[]>>({});
+  const [isLoadingUsage, setIsLoadingUsage] = useState(false);
   const [agentInstances, setAgentInstances] = useState<AgentInstance[]>([]);
   const [jimInstances, setJimInstances] = useState<AgentInstance[]>([]);
   const [activeInstanceId, setActiveInstanceId] = useState("");
@@ -452,6 +466,38 @@ export default function HomePage() {
     void loadLlmConfigurations();
   }, []);
 
+  const loadUsage = async () => {
+    setIsLoadingUsage(true);
+    try {
+      const platformResponse = await fetch("/api/usage/platform");
+      if (!platformResponse.ok) throw new Error("Platform usage could not be loaded.");
+      setPlatformUsage((await platformResponse.json()) as UsageBucket[]);
+
+      if (!selectedProjectId) {
+        setProjectUsage([]);
+        setAgentUsage({});
+      } else {
+        const projectResponse = await fetch(`/api/projects/${selectedProjectId}/usage`);
+        if (!projectResponse.ok) throw new Error("Project usage could not be loaded.");
+        setProjectUsage((await projectResponse.json()) as UsageBucket[]);
+        const usageByAgent = await Promise.all(agents.map(async (agent) => {
+          const response = await fetch(`/api/projects/${selectedProjectId}/agents/${agent.id}/usage`);
+          return [agent.id, response.ok ? (await response.json()) as UsageBucket[] : []] as const;
+        }));
+        setAgentUsage(Object.fromEntries(usageByAgent));
+      }
+
+      const usageByLlm = await Promise.all(llmConfigurations.map(async (llm) => {
+        const response = await fetch(`/api/llm-configurations/${llm.id}/usage`);
+        return [llm.id, response.ok ? (await response.json()) as UsageBucket[] : []] as const;
+      }));
+      setLlmUsage(Object.fromEntries(usageByLlm));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Usage could not be loaded.");
+    } finally {
+      setIsLoadingUsage(false);
+    }
+  };
   const selectProject = (projectId: string) => {
     setSelectedProjectId(projectId);
     setTab("overview");
@@ -977,6 +1023,16 @@ export default function HomePage() {
             <span className="nav-icon">✦</span>
             <span>LLM configurations</span>
           </button>
+          <button
+            className={page === "usage" ? "active" : ""}
+            onClick={() => {
+              setPage("usage");
+              void loadUsage();
+            }}
+          >
+            <span className="nav-icon">◫</span>
+            <span>Usage</span>
+          </button>
         </nav>
         {page === "projects" && (
           <section className="project-nav" aria-labelledby="project-nav-title">
@@ -1030,7 +1086,9 @@ export default function HomePage() {
                 ? "Projects"
                 : page === "chat"
                   ? "Chat with Jim"
-                  : "Platform"}
+                  : page === "usage"
+                    ? "Usage"
+                    : "Platform"}
             </span>
             {page === "projects" && (
               <>
@@ -1881,6 +1939,29 @@ export default function HomePage() {
               )}
             </section>
           )}
+          {page === "usage" && (
+            <section className="usage-page" aria-labelledby="usage-title">
+              <div className="project-heading">
+                <p className="eyebrow">Observability</p>
+                <h1 id="usage-title">LLM usage</h1>
+                <p>Successful model calls, grouped into 15-minute UTC windows.</p>
+              </div>
+              <div className="usage-actions">
+                <span aria-live="polite">{isLoadingUsage ? "Refreshing usage…" : ""}</span>
+                <button className="text-button" type="button" onClick={() => void loadUsage()} disabled={isLoadingUsage}>Refresh</button>
+              </div>
+              <UsageSummary title="Platform" buckets={platformUsage} />
+              <UsageSummary title={selectedProject ? `${selectedProject.name} project` : "Selected project"} buckets={projectUsage} />
+              <section className="project-panel usage-breakdown">
+                <div className="panel-heading"><div><p className="eyebrow">Agents</p><h2>Usage by agent</h2></div></div>
+                {agents.length === 0 ? <div className="empty-state compact-empty"><strong>No agents in this project</strong></div> : <UsageBreakdown items={agents.map((agent) => ({ id: agent.id, label: agent.name, buckets: agentUsage[agent.id] ?? [] }))} />}
+              </section>
+              <section className="project-panel usage-breakdown">
+                <div className="panel-heading"><div><p className="eyebrow">Models</p><h2>Usage by LLM configuration</h2></div></div>
+                {llmConfigurations.length === 0 ? <div className="empty-state compact-empty"><strong>No LLM configurations</strong></div> : <UsageBreakdown items={llmConfigurations.map((llm) => ({ id: llm.id, label: `${llm.name} (${llm.modelName})`, buckets: llmUsage[llm.id] ?? [] }))} />}
+              </section>
+            </section>
+          )}
         </main>
       </div>
       {viewingToolsFor && (
@@ -1978,3 +2059,35 @@ function ComingSoon({ title, text }: { title: string; text: string }) {
     </section>
   );
 }
+
+function UsageSummary({ title, buckets }: { title: string; buckets: UsageBucket[] }) {
+  const totals = sumUsage(buckets);
+  return (
+    <section className="project-panel usage-summary">
+      <div className="panel-heading"><div><p className="eyebrow">Usage total</p><h2>{title}</h2></div><span>{buckets.length} windows</span></div>
+      <dl className="usage-metrics">
+        <div><dt>Calls</dt><dd>{formatNumber(totals.callCount)}</dd></div>
+        <div><dt>Total tokens</dt><dd>{formatNumber(totals.totalTokens)}</dd></div>
+        <div><dt>Input tokens</dt><dd>{formatNumber(totals.inputTokens)}</dd></div>
+        <div><dt>Output tokens</dt><dd>{formatNumber(totals.outputTokens)}</dd></div>
+        <div><dt>Cached input</dt><dd>{formatNumber(totals.cachedInputTokens)}</dd></div>
+        <div><dt>Reasoning tokens</dt><dd>{formatNumber(totals.reasoningTokens)}</dd></div>
+      </dl>
+      {buckets.length > 0 && <UsageWindows buckets={buckets} />}
+    </section>
+  );
+}
+
+function UsageBreakdown({ items }: { items: { id: string; label: string; buckets: UsageBucket[] }[] }) {
+  return <div className="usage-table-wrap"><table className="usage-table"><thead><tr><th>Name</th><th>Calls</th><th>Total tokens</th><th>Input</th><th>Output</th><th>Cached</th><th>Reasoning</th></tr></thead><tbody>{items.map((item) => { const totals = sumUsage(item.buckets); return <tr key={item.id}><th>{item.label}</th><td>{formatNumber(totals.callCount)}</td><td>{formatNumber(totals.totalTokens)}</td><td>{formatNumber(totals.inputTokens)}</td><td>{formatNumber(totals.outputTokens)}</td><td>{formatNumber(totals.cachedInputTokens)}</td><td>{formatNumber(totals.reasoningTokens)}</td></tr>; })}</tbody></table></div>;
+}
+
+function UsageWindows({ buckets }: { buckets: UsageBucket[] }) {
+  return <div className="usage-table-wrap"><table className="usage-table"><caption>Most recent 15-minute windows</caption><thead><tr><th>Window start (UTC)</th><th>Calls</th><th>Total tokens</th><th>Input</th><th>Output</th></tr></thead><tbody>{buckets.slice(-8).reverse().map((bucket) => <tr key={bucket.bucketStart}><th>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(bucket.bucketStart))}</th><td>{formatNumber(bucket.callCount)}</td><td>{formatNumber(bucket.totalTokens)}</td><td>{formatNumber(bucket.inputTokens)}</td><td>{formatNumber(bucket.outputTokens)}</td></tr>)}</tbody></table></div>;
+}
+
+function sumUsage(buckets: UsageBucket[]) {
+  return buckets.reduce((total, bucket) => ({ callCount: total.callCount + bucket.callCount, inputTokens: total.inputTokens + bucket.inputTokens, cachedInputTokens: total.cachedInputTokens + bucket.cachedInputTokens, outputTokens: total.outputTokens + bucket.outputTokens, reasoningTokens: total.reasoningTokens + bucket.reasoningTokens, totalTokens: total.totalTokens + bucket.totalTokens }), { callCount: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0 });
+}
+
+function formatNumber(value: number) { return new Intl.NumberFormat().format(value); }

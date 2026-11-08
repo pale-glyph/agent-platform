@@ -27,6 +27,21 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.HasKey("Id"); item.HasIndex("Name").IsUnique(); item.ToTable("llm_configurations");
         });
 
+        modelBuilder.Entity("AgentPlatform.Domain.Metrics.UsageMetricBucket", item =>
+        {
+            item.Property<AgentPlatform.Domain.Metrics.UsageMetricScope>("Scope").IsRequired().HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("scope");
+            item.Property<Guid>("ScopeId").HasColumnType("uuid").HasColumnName("scope_id");
+            item.Property<DateTimeOffset>("BucketStart").HasColumnType("timestamp with time zone").HasColumnName("bucket_start");
+            item.Property<long>("CallCount").HasColumnType("bigint").HasColumnName("call_count");
+            item.Property<long>("InputTokens").HasColumnType("bigint").HasColumnName("input_tokens");
+            item.Property<long>("CachedInputTokens").HasColumnType("bigint").HasColumnName("cached_input_tokens");
+            item.Property<long>("OutputTokens").HasColumnType("bigint").HasColumnName("output_tokens");
+            item.Property<long>("ReasoningTokens").HasColumnType("bigint").HasColumnName("reasoning_tokens");
+            item.Property<long>("TotalTokens").HasColumnType("bigint").HasColumnName("total_tokens");
+            item.HasKey("Scope", "ScopeId", "BucketStart");
+            item.ToTable("usage_metric_buckets");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentDefinition", item =>
         {
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
