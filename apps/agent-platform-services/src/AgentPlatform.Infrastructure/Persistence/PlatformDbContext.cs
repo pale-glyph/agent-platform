@@ -2,6 +2,7 @@ using AgentPlatform.Domain.Agents;
 using AgentPlatform.Domain.Llm;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Domain.Projects;
+using AgentPlatform.Domain.Webhooks;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgentPlatform.Infrastructure.Persistence;
@@ -12,6 +13,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
     public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
     public DbSet<McpServer> McpServers => Set<McpServer>();
+    public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,5 +59,46 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         mcp.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
         mcp.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
         mcp.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+
+        var webhook = modelBuilder.Entity<WebhookEndpoint>();
+        webhook.ToTable("webhook_endpoints");
+        webhook.HasKey(item => item.Id);
+        webhook.Property(item => item.Id).HasColumnName("id");
+        webhook.Property(item => item.ProjectId).HasColumnName("project_id");
+        webhook.Property(item => item.Name).HasColumnName("name").HasMaxLength(WebhookEndpoint.MaximumNameLength).IsRequired();
+        webhook.Property(item => item.EndpointUrl).HasColumnName("endpoint_url").HasMaxLength(WebhookEndpoint.MaximumUrlLength).IsRequired();
+        webhook.Property(item => item.Secret).HasColumnName("secret").HasMaxLength(WebhookEndpoint.MaximumSecretLength).IsRequired();
+        webhook.Property(item => item.EventsJson).HasColumnName("events").HasColumnType("jsonb").IsRequired();
+        webhook.Ignore(item => item.Events);
+        webhook.Property(item => item.IsEnabled).HasColumnName("is_enabled").IsRequired();
+        webhook.Property(item => item.ConsecutiveFailures).HasColumnName("consecutive_failures").IsRequired();
+        webhook.Property(item => item.CircuitOpenUntil).HasColumnName("circuit_open_until");
+        webhook.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        webhook.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
+        webhook.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+
+        var delivery = modelBuilder.Entity<WebhookDelivery>();
+        delivery.ToTable("webhook_deliveries");
+        delivery.HasKey(item => item.Id);
+        delivery.Property(item => item.Id).HasColumnName("id");
+        delivery.Property(item => item.ProjectId).HasColumnName("project_id");
+        delivery.Property(item => item.WebhookId).HasColumnName("webhook_id");
+        delivery.Property(item => item.WebhookName).HasColumnName("webhook_name").HasMaxLength(WebhookEndpoint.MaximumNameLength).IsRequired();
+        delivery.Property(item => item.EventId).HasColumnName("event_id");
+        delivery.Property(item => item.EventType).HasColumnName("event_type").HasMaxLength(200).IsRequired();
+        delivery.Property(item => item.EndpointUrl).HasColumnName("endpoint_url").HasMaxLength(WebhookEndpoint.MaximumUrlLength).IsRequired();
+        delivery.Property(item => item.SigningSecret).HasColumnName("signing_secret").HasMaxLength(WebhookEndpoint.MaximumSecretLength).IsRequired();
+        delivery.Property(item => item.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
+        delivery.Property(item => item.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+        delivery.Property(item => item.AttemptCount).HasColumnName("attempt_count").IsRequired();
+        delivery.Property(item => item.RetryAttemptCount).HasColumnName("retry_attempt_count").IsRequired();
+        delivery.Property(item => item.NextAttemptAt).HasColumnName("next_attempt_at").IsRequired();
+        delivery.Property(item => item.ClaimedUntil).HasColumnName("claimed_until");
+        delivery.Property(item => item.LastStatusCode).HasColumnName("last_status_code");
+        delivery.Property(item => item.LastError).HasColumnName("last_error").HasMaxLength(2_000);
+        delivery.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        delivery.Property(item => item.CompletedAt).HasColumnName("completed_at");
+        delivery.HasIndex(item => new { item.ProjectId, item.Status, item.CreatedAt });
+        delivery.HasIndex(item => new { item.Status, item.NextAttemptAt, item.ClaimedUntil });
     }
 }

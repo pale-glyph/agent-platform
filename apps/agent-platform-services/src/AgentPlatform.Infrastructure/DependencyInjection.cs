@@ -1,6 +1,7 @@
 using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Infrastructure.Persistence;
 using AgentPlatform.Infrastructure.Mcp;
+using AgentPlatform.Infrastructure.Webhooks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +18,10 @@ public static class DependencyInjection
         services.AddScoped<IMcpServerRepository, EfMcpServerRepository>();
         services.AddHttpClient("mcp");
         services.AddScoped<IMcpToolDefinitionClient, HttpMcpToolDefinitionClient>();
+        services.AddScoped<IWebhookRepository, EfWebhookRepository>();
+        services.AddScoped<IWebhookEventPublisher, EfWebhookEventPublisher>();
+        services.AddScoped<IWebhookDeliveryStore, EfWebhookDeliveryStore>();
+        services.AddHttpClient("webhooks", client => client.Timeout = TimeSpan.FromSeconds(15));
         return services;
     }
 }

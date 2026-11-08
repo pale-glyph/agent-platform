@@ -2,6 +2,7 @@ using AgentPlatform.Application.Agents;
 using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
 using AgentPlatform.Application.Mcp;
+using AgentPlatform.Application.Webhooks;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
@@ -18,9 +19,11 @@ builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddScoped<McpServerService>();
+builder.Services.AddScoped<WebhookService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHealthChecks();
+builder.Services.AddHostedService<AgentPlatform.Infrastructure.Webhooks.WebhookDispatchWorker>();
 
 var app = builder.Build();
 
@@ -32,6 +35,11 @@ await using (var scope = app.Services.CreateAsyncScope())
 
 app.MapHealthChecks("/health");
 app.MapPlatformMcp();
+app.MapPost("/webhooks/receive", async (HttpRequest request, CancellationToken ct) =>
+{
+    await request.Body.CopyToAsync(Stream.Null, ct);
+    return Results.Ok();
+});
 
 var llmConfigurations = app.MapGroup("/api/llm-configurations");
 llmConfigurations.MapGet("/", async (LlmConfigurationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct)));
@@ -153,12 +161,55 @@ mcpServers.MapGet("/{serverId:guid}/tools", async (Guid projectId, Guid serverId
     catch (InvalidOperationException) { return Results.Problem(title: "The MCP server returned an invalid tool definition response.", statusCode: StatusCodes.Status502BadGateway); }
 });
 
+var webhooks = projects.MapGroup("/{projectId:guid}/webhooks");
+webhooks.MapGet("/", async (Guid projectId, WebhookService service, CancellationToken ct) =>
+{
+    var items = await service.ListAsync(projectId, ct);
+    return items is null ? Results.NotFound() : Results.Ok(items);
+});
+webhooks.MapPost("/", async (Guid projectId, WebhookRequest request, WebhookService service, CancellationToken ct) =>
+{
+    try
+    {
+        var item = await service.CreateAsync(projectId, request.Name ?? "", request.EndpointUrl ?? "", request.Secret ?? "", request.Events ?? [], ct);
+        return item is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/webhooks/{item.Id}", item);
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["webhook"] = [exception.Message] }); }
+});
+webhooks.MapPut("/{webhookId:guid}", async (Guid projectId, Guid webhookId, WebhookRequest request, WebhookService service, CancellationToken ct) =>
+{
+    try
+    {
+        var item = await service.UpdateAsync(projectId, webhookId, request.Name ?? "", request.EndpointUrl ?? "", request.Secret, request.Events ?? [], request.Enabled ?? true, ct);
+        return item is null ? Results.NotFound() : Results.Ok(item);
+    }
+    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["webhook"] = [exception.Message] }); }
+});
+webhooks.MapDelete("/{webhookId:guid}", async (Guid projectId, Guid webhookId, WebhookService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, webhookId, ct) ? Results.NoContent() : Results.NotFound());
+webhooks.MapGet("/metrics", async (Guid projectId, WebhookService service, CancellationToken ct) =>
+{
+    var metrics = await service.GetMetricsAsync(projectId, ct);
+    return metrics is null ? Results.NotFound() : Results.Ok(metrics);
+});
+webhooks.MapGet("/deliveries", async (Guid projectId, WebhookService service, CancellationToken ct) =>
+{
+    var deliveries = await service.ListDeliveriesAsync(projectId, ct);
+    return deliveries is null ? Results.NotFound() : Results.Ok(deliveries);
+});
+webhooks.MapPost("/deliveries/retry-failed", async (Guid projectId, WebhookService service, CancellationToken ct) =>
+{
+    var retried = await service.RetryFailedAsync(projectId, ct);
+    return retried is null ? Results.NotFound() : Results.Ok(new { retried });
+});
+
 app.Run();
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
+public sealed record WebhookRequest(string? Name, string? EndpointUrl, string? Secret, string[]? Events, bool? Enabled);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);

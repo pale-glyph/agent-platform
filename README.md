@@ -99,7 +99,7 @@ stateDiagram-v2
 
 ## Repository status
 
-This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, and project-scoped MCP server configuration. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Message handling, authentication, and the remaining feature endpoints are the next implementation stages.
+This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Message handling, authentication, and the remaining feature endpoints are the next implementation stages.
 
 ## Project layout
 

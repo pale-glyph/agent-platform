@@ -66,12 +66,60 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.ToTable("mcp_servers");
         });
 
+        modelBuilder.Entity("AgentPlatform.Domain.Webhooks.WebhookEndpoint", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<DateTimeOffset?>("CircuitOpenUntil").HasColumnType("timestamp with time zone").HasColumnName("circuit_open_until");
+            item.Property<int>("ConsecutiveFailures").HasColumnType("integer").HasColumnName("consecutive_failures");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<string>("EndpointUrl").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("endpoint_url");
+            item.Property<string>("EventsJson").IsRequired().HasColumnType("jsonb").HasColumnName("events");
+            item.Property<bool>("IsEnabled").HasColumnType("boolean").HasColumnName("is_enabled");
+            item.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("name");
+            item.Property<Guid>("ProjectId").HasColumnType("uuid").HasColumnName("project_id");
+            item.Property<string>("Secret").IsRequired().HasMaxLength(1000).HasColumnType("character varying(1000)").HasColumnName("secret");
+            item.HasKey("Id");
+            item.HasIndex("ProjectId", "Name").IsUnique();
+            item.ToTable("webhook_endpoints");
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Webhooks.WebhookDelivery", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<int>("AttemptCount").HasColumnType("integer").HasColumnName("attempt_count");
+            item.Property<int>("RetryAttemptCount").HasColumnType("integer").HasColumnName("retry_attempt_count");
+            item.Property<DateTimeOffset?>("ClaimedUntil").HasColumnType("timestamp with time zone").HasColumnName("claimed_until");
+            item.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone").HasColumnName("completed_at");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<Guid>("EventId").HasColumnType("uuid").HasColumnName("event_id");
+            item.Property<string>("EventType").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("event_type");
+            item.Property<string>("EndpointUrl").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("endpoint_url");
+            item.Property<string>("LastError").HasMaxLength(2000).HasColumnType("character varying(2000)").HasColumnName("last_error");
+            item.Property<int?>("LastStatusCode").HasColumnType("integer").HasColumnName("last_status_code");
+            item.Property<DateTimeOffset>("NextAttemptAt").HasColumnType("timestamp with time zone").HasColumnName("next_attempt_at");
+            item.Property<string>("Payload").IsRequired().HasColumnType("jsonb").HasColumnName("payload");
+            item.Property<Guid>("ProjectId").HasColumnType("uuid").HasColumnName("project_id");
+            item.Property<string>("SigningSecret").IsRequired().HasMaxLength(1000).HasColumnType("character varying(1000)").HasColumnName("signing_secret");
+            item.Property<AgentPlatform.Domain.Webhooks.WebhookDeliveryStatus>("Status").IsRequired().HasConversion<string>().HasMaxLength(20).HasColumnType("character varying(20)").HasColumnName("status");
+            item.Property<string>("WebhookName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("webhook_name");
+            item.Property<Guid>("WebhookId").HasColumnType("uuid").HasColumnName("webhook_id");
+            item.HasKey("Id");
+            item.HasIndex("ProjectId", "Status", "CreatedAt");
+            item.HasIndex("Status", "NextAttemptAt", "ClaimedUntil");
+            item.ToTable("webhook_deliveries");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentDefinition", item =>
         {
             item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
 
         modelBuilder.Entity("AgentPlatform.Domain.Mcp.McpServer", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Webhooks.WebhookEndpoint", item =>
         {
             item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
