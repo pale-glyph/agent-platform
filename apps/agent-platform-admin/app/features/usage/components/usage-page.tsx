@@ -1,4 +1,4 @@
-import type { Agent, LlmConfiguration, Project, UsageBucket } from "../../types";
+import type { Agent, LlmConfiguration, Project, UsageBucket } from "../../../types";
 
 type UsagePageProps = {
   selectedProject?: Project;

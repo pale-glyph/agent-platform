@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { Project, ProjectTab } from "../../types";
-import { useWorkspaceNavigation } from "../workspace-navigation-context";
+import type { Project, ProjectTab } from "../../../types";
+import { useWorkspaceNavigation } from "../../../contexts/workspace-navigation-context";
 
 type ProjectWorkspacePageProps = {
   project: Project;

@@ -1,4 +1,4 @@
-import { useWorkspaceNavigation } from "./workspace-navigation-context";
+import { useWorkspaceNavigation } from "../../contexts/workspace-navigation-context";
 
 type AppHeaderProps = { onCreateLlm: () => void };
 

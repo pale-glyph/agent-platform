@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { LlmConfiguration } from "../../types";
+import type { LlmConfiguration } from "../../../types";
 
 export function LlmConfigurationsPage({ configurations, editing, isFormOpen, isSaving, name, providerUrl, modelName, apiKey, onOpenForm, onSubmit, onCancel, onNameChange, onProviderUrlChange, onModelNameChange, onApiKeyChange, onEdit, onDelete }: { configurations: LlmConfiguration[]; editing: LlmConfiguration | null; isFormOpen: boolean; isSaving: boolean; name: string; providerUrl: string; modelName: string; apiKey: string; onOpenForm: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void; onNameChange: (value: string) => void; onProviderUrlChange: (value: string) => void; onModelNameChange: (value: string) => void; onApiKeyChange: (value: string) => void; onEdit: (item: LlmConfiguration) => void; onDelete: (item: LlmConfiguration) => void }) {
   return <section className="project-panel tab-panel" id="llm-configurations">

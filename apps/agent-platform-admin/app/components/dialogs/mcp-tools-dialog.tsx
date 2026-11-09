@@ -1,4 +1,4 @@
-import type { McpServer, McpTool } from "../types";
+import type { McpServer, McpTool } from "../../types";
 
 type McpToolsDialogProps = {
   server: McpServer;

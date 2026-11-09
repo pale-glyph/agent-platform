@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { AgentInstance, TimelineEntry } from "../../types";
+import type { AgentInstance, TimelineEntry } from "../../../types";
 
 type ConversationPageProps = {
   agentId: string;

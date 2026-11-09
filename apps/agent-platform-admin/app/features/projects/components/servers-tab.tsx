@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { McpServer } from "../../types";
+import type { McpServer } from "../../../types";
 
 type Props = { servers: McpServer[]; editing: McpServer | null; isFormOpen: boolean; isSaving: boolean; name: string; endpoint: string; cacheTtlSeconds: string; security: "None" | "ApiKey"; apiKey: string; onOpenForm: (server?: McpServer) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void; onNameChange: (value: string) => void; onEndpointChange: (value: string) => void; onCacheTtlSecondsChange: (value: string) => void; onSecurityChange: (value: "None" | "ApiKey") => void; onApiKeyChange: (value: string) => void; onViewTools: (server: McpServer) => void; onClearCache: (server: McpServer) => void; onDelete: (server: McpServer) => void; };
 

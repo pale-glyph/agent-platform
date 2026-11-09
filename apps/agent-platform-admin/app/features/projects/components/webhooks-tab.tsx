@@ -1,6 +1,6 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { webhookEventTypes } from "../../lib/admin-page-constants";
-import { useProjectWebhooks } from "./use-project-webhooks";
+import { webhookEventTypes } from "../constants";
+import { useProjectWebhooks } from "../hooks/use-project-webhooks";
 
 type Props = { projectId: string; projectName?: string; onMessage: (message: string) => void };
 

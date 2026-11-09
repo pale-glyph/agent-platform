@@ -1,4 +1,4 @@
-import type { ProjectTab } from "../types";
+import type { ProjectTab } from "../../types";
 
 export const webhookEventTypes = [
   ["project.updated", "Project updated"],

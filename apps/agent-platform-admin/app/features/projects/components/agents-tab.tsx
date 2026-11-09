@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import type { Agent, LlmConfiguration, McpServer, McpTool, Project } from "../../types";
+import type { Agent, LlmConfiguration, McpServer, McpTool, Project } from "../../../types";
 
 type Props = { project: Project; agents: Agent[]; llmConfigurations: LlmConfiguration[]; mcpServers: McpServer[]; editingAgent: Agent | null; isFormOpen: boolean; isSaving: boolean; name: string; description: string; prompt: string; llmConfigurationId: string; toolsByServer: Record<string, McpTool[]>; selectedToolKeys: string[]; isLoadingTools: boolean; onOpenForm: (agent?: Agent) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void; onDelete: (agent: Agent) => void; onNameChange: (value: string) => void; onDescriptionChange: (value: string) => void; onPromptChange: (value: string) => void; onLlmConfigurationChange: (value: string) => void; onSelectedToolKeysChange: Dispatch<SetStateAction<string[]>>; };
 

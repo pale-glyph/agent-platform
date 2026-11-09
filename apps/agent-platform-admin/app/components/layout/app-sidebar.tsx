@@ -1,4 +1,4 @@
-import { useWorkspaceNavigation } from "./workspace-navigation-context";
+import { useWorkspaceNavigation } from "../../contexts/workspace-navigation-context";
 
 export function AppSidebar() {
   const { page, projects, selectedProjectId, isLoadingProjects, setPage, openUsage, selectProject, openProjectForm } = useWorkspaceNavigation();
