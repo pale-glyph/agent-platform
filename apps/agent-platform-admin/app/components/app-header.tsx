@@ -1,18 +1,9 @@
-import type { AdminPage, Project } from "../types";
+import { useWorkspaceNavigation } from "./workspace-navigation-context";
 
-type AppHeaderProps = {
-  page: AdminPage;
-  selectedProject?: Project;
-  onCreateProject: () => void;
-  onCreateLlm: () => void;
-};
+type AppHeaderProps = { onCreateLlm: () => void };
 
-export function AppHeader({
-  page,
-  selectedProject,
-  onCreateProject,
-  onCreateLlm,
-}: AppHeaderProps) {
+export function AppHeader({ onCreateLlm }: AppHeaderProps) {
+  const { page, selectedProject, openProjectForm } = useWorkspaceNavigation();
   const label =
     page === "projects"
       ? "Projects"
@@ -34,7 +25,7 @@ export function AppHeader({
         )}
       </div>
       {page === "projects" ? (
-        <button className="new-button" type="button" onClick={onCreateProject}>
+        <button className="new-button" type="button" onClick={openProjectForm}>
           New project
         </button>
       ) : page === "llm" ? (

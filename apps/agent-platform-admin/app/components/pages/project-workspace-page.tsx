@@ -1,21 +1,19 @@
 import type { ReactNode } from "react";
 import type { Project, ProjectTab } from "../../types";
+import { useWorkspaceNavigation } from "../workspace-navigation-context";
 
 type ProjectWorkspacePageProps = {
   project: Project;
-  tab: ProjectTab;
   tabs: ReadonlyArray<{ id: ProjectTab; label: string }>;
-  onTabChange: (tab: ProjectTab) => void;
   children: ReactNode;
 };
 
 export function ProjectWorkspacePage({
   project,
-  tab,
   tabs,
-  onTabChange,
   children,
 }: ProjectWorkspacePageProps) {
+  const { tab, setTab } = useWorkspaceNavigation();
   return (
     <>
       <div className="project-heading">
@@ -31,7 +29,7 @@ export function ProjectWorkspacePage({
             role="tab"
             aria-selected={tab === item.id}
             className={tab === item.id ? "active" : ""}
-            onClick={() => onTabChange(item.id)}
+            onClick={() => setTab(item.id)}
           >
             {item.label}
           </button>

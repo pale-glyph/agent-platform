@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "./components/app-header";
 import { AppSidebar } from "./components/app-sidebar";
+import { WorkspaceNavigationProvider } from "./components/workspace-navigation-context";
 import { ProjectCreateForm } from "./components/project-create-form";
 import { ConversationPage } from "./components/pages/conversation-page";
 import { AgentsTab } from "./components/pages/agents-tab";
@@ -889,11 +890,12 @@ export default function HomePage() {
   };
 
   return (
+    <WorkspaceNavigationProvider value={{ page, setPage, projects, selectedProject, selectedProjectId, isLoadingProjects: isLoading, selectProject, openProjectForm: () => setIsProjectFormOpen(true), openUsage: () => { setPage("usage"); void loadUsage(); }, tab, setTab }}>
     <div className="app-shell">
-      <AppSidebar page={page} projects={projects} selectedProjectId={selectedProjectId} isLoading={isLoading} onPageChange={setPage} onUsageSelect={() => { setPage("usage"); void loadUsage(); }} onProjectSelect={selectProject} onCreateProject={() => setIsProjectFormOpen(true)} />
+      <AppSidebar />
 
       <div className="workspace" id="workspace">
-        <AppHeader page={page} selectedProject={selectedProject} onCreateProject={() => setIsProjectFormOpen(true)} onCreateLlm={() => openLlmForm()} />
+        <AppHeader onCreateLlm={() => openLlmForm()} />
         <main>
           {message && (
             <p className="status-message" role="alert">
@@ -911,7 +913,7 @@ export default function HomePage() {
                 </span>
               </div>
             ) : (
-              <ProjectWorkspacePage project={selectedProject} tab={tab} tabs={projectTabs} onTabChange={setTab}>
+              <ProjectWorkspacePage project={selectedProject} tabs={projectTabs}>
                 {tab === "overview" && (
                   <ProjectOverview project={selectedProject} agentCount={agents.length} serverCount={mcpServers.length} />
                 )}
@@ -928,5 +930,6 @@ export default function HomePage() {
       </div>
       {viewingToolsFor && <McpToolsDialog server={viewingToolsFor} tools={mcpTools} isLoading={isLoadingMcpTools} error={mcpToolsError} onClose={() => setViewingToolsFor(null)} />}
     </div>
+    </WorkspaceNavigationProvider>
   );
 }
