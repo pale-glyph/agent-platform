@@ -1,11 +1,11 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import type { Webhook, WebhookDelivery, WebhookMetrics } from "../../types";
+import { webhookEventTypes } from "../../lib/admin-page-constants";
+import { useProjectWebhooks } from "./use-project-webhooks";
 
-type WebhookEventType = readonly [string, string];
-type Props = { webhooks: Webhook[]; deliveries: WebhookDelivery[]; metrics: WebhookMetrics; editing: Webhook | null; isFormOpen: boolean; isSaving: boolean; isRetrying: boolean; name: string; url: string; secret: string; events: string[]; eventTypes: readonly WebhookEventType[]; onOpenForm: (webhook?: Webhook) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void; onNameChange: (value: string) => void; onUrlChange: (value: string) => void; onSecretChange: (value: string) => void; onEventsChange: Dispatch<SetStateAction<string[]>>; onToggle: (webhook: Webhook) => void; onDelete: (webhook: Webhook) => void; onRefresh: () => void; onRetryFailed: () => void; };
+type Props = { projectId: string; projectName?: string; onMessage: (message: string) => void };
 
 export function WebhooksTab(props: Props) {
-  const { webhooks, deliveries: webhookDeliveries, metrics: webhookMetrics, editing: editingWebhook, isFormOpen: isWebhookFormOpen, isSaving, isRetrying: isRetryingWebhooks, name: webhookName, url: webhookUrl, secret: webhookSecret, events: webhookEvents, eventTypes: webhookEventTypes, onOpenForm: openWebhookForm, onSubmit: saveWebhook, onCancel, onNameChange: setWebhookName, onUrlChange: setWebhookUrl, onSecretChange: setWebhookSecret, onEventsChange: setWebhookEvents, onToggle: toggleWebhook, onDelete: deleteWebhook, onRefresh: loadWebhooks, onRetryFailed: retryFailedWebhooks } = props;
+  const { webhooks, deliveries: webhookDeliveries, metrics: webhookMetrics, editing: editingWebhook, isFormOpen: isWebhookFormOpen, isSaving, isRetrying: isRetryingWebhooks, name: webhookName, url: webhookUrl, secret: webhookSecret, events: webhookEvents, setName: setWebhookName, setUrl: setWebhookUrl, setSecret: setWebhookSecret, setEvents: setWebhookEvents, openForm: openWebhookForm, save: saveWebhook, closeForm: onCancel, toggle: toggleWebhook, remove: deleteWebhook, refresh: loadWebhooks, retryFailed: retryFailedWebhooks } = useProjectWebhooks(props.projectId, props.projectName, props.onMessage);
   return (
                   <section className="project-panel tab-panel">
                     <div className="panel-heading">

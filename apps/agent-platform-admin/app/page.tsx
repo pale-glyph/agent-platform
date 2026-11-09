@@ -16,9 +16,7 @@ import { McpToolsDialog } from "./components/mcp-tools-dialog";
 import { ProjectOverview } from "./components/project-overview";
 import { UsagePage } from "./components/pages/usage-page";
 import {
-  defaultWebhookEvents,
   projectTabs,
-  webhookEventTypes,
 } from "./lib/admin-page-constants";
 import { readError } from "./lib/http";
 import type {
@@ -33,9 +31,6 @@ import type {
   TimelineEntry,
   TimelinePage,
   UsageBucket,
-  Webhook,
-  WebhookDelivery,
-  WebhookMetrics,
 } from "./types";
 
 const jimAgentId = process.env.NEXT_PUBLIC_JIM_AGENT_ID ?? "";
@@ -46,16 +41,6 @@ export default function HomePage() {
   const [tab, setTab] = useState<ProjectTab>("overview");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [webhookMetrics, setWebhookMetrics] = useState<WebhookMetrics>({
-    sent: 0,
-    failed: 0,
-    pending: 0,
-    attempts: 0,
-  });
-  const [webhookDeliveries, setWebhookDeliveries] = useState<WebhookDelivery[]>(
-    [],
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -87,15 +72,6 @@ export default function HomePage() {
   const [mcpTools, setMcpTools] = useState<McpTool[]>([]);
   const [isLoadingMcpTools, setIsLoadingMcpTools] = useState(false);
   const [mcpToolsError, setMcpToolsError] = useState<string | null>(null);
-  const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
-  const [isWebhookFormOpen, setIsWebhookFormOpen] = useState(false);
-  const [webhookName, setWebhookName] = useState("");
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookSecret, setWebhookSecret] = useState("");
-  const [webhookEvents, setWebhookEvents] = useState<string[]>(
-    defaultWebhookEvents,
-  );
-  const [isRetryingWebhooks, setIsRetryingWebhooks] = useState(false);
   const [llmConfigurations, setLlmConfigurations] = useState<
     LlmConfiguration[]
   >([]);
@@ -181,47 +157,6 @@ export default function HomePage() {
           : "MCP servers could not be loaded.",
       );
     }
-  };
-  const loadWebhooks = async () => {
-    if (!selectedProjectId) {
-      setWebhooks([]);
-      setWebhookDeliveries([]);
-      setWebhookMetrics({ sent: 0, failed: 0, pending: 0, attempts: 0 });
-      return;
-    }
-    try {
-      const response = await fetch(
-        `/api/projects/${selectedProjectId}/webhooks/`,
-      );
-      if (!response.ok) throw new Error(await readError(response));
-      setWebhooks((await response.json()) as Webhook[]);
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? `Webhook list: ${error.message}`
-          : "Webhook list could not be loaded.",
-      );
-      return;
-    }
-
-    const [metricsResult, deliveriesResult] = await Promise.allSettled([
-      fetch(`/api/projects/${selectedProjectId}/webhooks/metrics`),
-      fetch(`/api/projects/${selectedProjectId}/webhooks/deliveries`),
-    ]);
-    if (metricsResult.status === "fulfilled" && metricsResult.value.ok)
-      setWebhookMetrics((await metricsResult.value.json()) as WebhookMetrics);
-    else
-      setMessage(
-        "Webhook list loaded, but delivery metrics could not be refreshed.",
-      );
-    if (deliveriesResult.status === "fulfilled" && deliveriesResult.value.ok)
-      setWebhookDeliveries(
-        (await deliveriesResult.value.json()) as WebhookDelivery[],
-      );
-    else
-      setMessage(
-        "Webhook list loaded, but delivery messages could not be refreshed.",
-      );
   };
   const loadAgentInstances = async () => {
     if (!selectedProjectId) {
@@ -326,9 +261,6 @@ export default function HomePage() {
     void loadMcpServers();
   }, [selectedProjectId]);
   useEffect(() => {
-    void loadWebhooks();
-  }, [selectedProjectId]);
-  useEffect(() => {
     void loadAgentInstances();
   }, [selectedProjectId]);
   useEffect(() => {
@@ -347,8 +279,6 @@ export default function HomePage() {
         projectId: string;
         data: { instanceId?: string };
       };
-      if (webhook.projectId === selectedProjectId && tab === "webhooks")
-        void loadWebhooks();
       if (
         page === "chat" &&
         webhook.projectId === jimProjectId &&
@@ -361,7 +291,7 @@ export default function HomePage() {
     stream.addEventListener("agent.message", refresh);
     stream.addEventListener("agent.tool_call", refresh);
     return () => stream.close();
-  }, [activeInstanceId, jimProjectId, page, selectedProjectId, tab]);
+  }, [activeInstanceId, jimProjectId, page]);
   const loadLlmConfigurations = async () => {
     try {
       const response = await fetch("/api/llm-configurations/");
@@ -718,129 +648,6 @@ export default function HomePage() {
       setIsLoadingMcpTools(false);
     }
   };
-  const openWebhookForm = (webhook?: Webhook) => {
-    setEditingWebhook(webhook ?? null);
-    setWebhookName(webhook?.name ?? "");
-    setWebhookUrl(webhook?.endpointUrl ?? "");
-    setWebhookSecret("");
-    setWebhookEvents(
-      webhook?.events ?? defaultWebhookEvents,
-    );
-    setIsWebhookFormOpen(true);
-    setMessage(null);
-  };
-  const saveWebhook = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedProjectId) return;
-    setIsSaving(true);
-    setMessage(null);
-    const response = await fetch(
-      editingWebhook
-        ? `/api/projects/${selectedProjectId}/webhooks/${editingWebhook.id}`
-        : `/api/projects/${selectedProjectId}/webhooks/`,
-      {
-        method: editingWebhook ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: webhookName,
-          endpointUrl: webhookUrl,
-          secret: webhookSecret || undefined,
-          events: webhookEvents,
-          enabled: editingWebhook?.isEnabled ?? true,
-        }),
-      },
-    );
-    if (!response.ok) {
-      setMessage(await readError(response));
-      setIsSaving(false);
-      return;
-    }
-    const savedWebhook = (await response.json()) as Webhook;
-    setWebhooks((items) =>
-      editingWebhook
-        ? items.map((item) =>
-            item.id === savedWebhook.id ? savedWebhook : item,
-          )
-        : [...items, savedWebhook].sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    setIsSaving(false);
-    setIsWebhookFormOpen(false);
-    setMessage(`${savedWebhook.name} saved.`);
-    await loadWebhooks();
-  };
-  const deleteWebhook = async (webhook: Webhook) => {
-    if (
-      !selectedProjectId ||
-      !window.confirm(
-        `Disable “${webhook.name}” and cancel its pending deliveries?`,
-      )
-    )
-      return;
-    const response = await fetch(
-      `/api/projects/${selectedProjectId}/webhooks/${webhook.id}`,
-      { method: "DELETE" },
-    );
-    if (!response.ok) {
-      setMessage("The webhook could not be disabled.");
-      return;
-    }
-    await loadWebhooks();
-  };
-  const retryFailedWebhooks = async () => {
-    if (!selectedProjectId || webhookMetrics.failed === 0 || isRetryingWebhooks)
-      return;
-    if (
-      !window.confirm(
-        `Resend all ${webhookMetrics.failed} failed webhook messages for ${selectedProject?.name ?? "this project"}?`,
-      )
-    )
-      return;
-    setIsRetryingWebhooks(true);
-    try {
-      const response = await fetch(
-        `/api/projects/${selectedProjectId}/webhooks/deliveries/retry-failed`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        setMessage(await readError(response));
-        return;
-      }
-      const result = (await response.json()) as { retried: number };
-      setMessage(
-        `${result.retried} failed webhook message${result.retried === 1 ? "" : "s"} queued for resend.`,
-      );
-      await loadWebhooks();
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Failed webhook messages could not be resent.",
-      );
-    } finally {
-      setIsRetryingWebhooks(false);
-    }
-  };
-  const toggleWebhook = async (webhook: Webhook) => {
-    const response = await fetch(
-      `/api/projects/${selectedProjectId}/webhooks/${webhook.id}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: webhook.name,
-          endpointUrl: webhook.endpointUrl,
-          events: webhook.events,
-          enabled: !webhook.isEnabled,
-        }),
-      },
-    );
-    if (!response.ok) {
-      setMessage(await readError(response));
-      return;
-    }
-    await loadWebhooks();
-  };
-
   const openLlmForm = (item?: LlmConfiguration) => {
     setEditingLlm(item ?? null);
     setLlmName(item?.name ?? "");
@@ -919,7 +726,7 @@ export default function HomePage() {
                 )}
                 {tab === "agents" && <AgentsTab project={selectedProject} agents={agents} llmConfigurations={llmConfigurations} mcpServers={mcpServers} editingAgent={editingAgent} isFormOpen={isAgentFormOpen} isSaving={isSaving} name={agentName} description={agentDescription} prompt={agentPrompt} llmConfigurationId={agentLlmConfigurationId} toolsByServer={agentMcpTools} selectedToolKeys={selectedMcpToolKeys} isLoadingTools={isLoadingAgentMcpTools} onOpenForm={openAgentForm} onSubmit={saveAgent} onCancel={() => setIsAgentFormOpen(false)} onDelete={(agent) => void deleteAgent(agent)} onNameChange={setAgentName} onDescriptionChange={setAgentDescription} onPromptChange={setAgentPrompt} onLlmConfigurationChange={setAgentLlmConfigurationId} onSelectedToolKeysChange={setSelectedMcpToolKeys} />}
                 {tab === "servers" && <ServersTab servers={mcpServers} editing={editingMcpServer} isFormOpen={isMcpServerFormOpen} isSaving={isSaving} name={mcpServerName} endpoint={mcpEndpoint} cacheTtlSeconds={mcpCacheTtlSeconds} security={mcpSecurity} apiKey={mcpApiKey} onOpenForm={openMcpServerForm} onSubmit={saveMcpServer} onCancel={() => setIsMcpServerFormOpen(false)} onNameChange={setMcpServerName} onEndpointChange={setMcpEndpoint} onCacheTtlSecondsChange={setMcpCacheTtlSeconds} onSecurityChange={setMcpSecurity} onApiKeyChange={setMcpApiKey} onViewTools={(server) => void viewMcpTools(server)} onClearCache={(server) => void clearMcpServerCache(server)} onDelete={(server) => void deleteMcpServer(server)} />}
-                {tab === "webhooks" && <WebhooksTab webhooks={webhooks} deliveries={webhookDeliveries} metrics={webhookMetrics} editing={editingWebhook} isFormOpen={isWebhookFormOpen} isSaving={isSaving} isRetrying={isRetryingWebhooks} name={webhookName} url={webhookUrl} secret={webhookSecret} events={webhookEvents} eventTypes={webhookEventTypes} onOpenForm={openWebhookForm} onSubmit={saveWebhook} onCancel={() => setIsWebhookFormOpen(false)} onNameChange={setWebhookName} onUrlChange={setWebhookUrl} onSecretChange={setWebhookSecret} onEventsChange={setWebhookEvents} onToggle={(webhook) => void toggleWebhook(webhook)} onDelete={(webhook) => void deleteWebhook(webhook)} onRefresh={() => void loadWebhooks()} onRetryFailed={() => void retryFailedWebhooks()} />}
+                {tab === "webhooks" && <WebhooksTab projectId={selectedProject.id} projectName={selectedProject.name} onMessage={setMessage} />}
                 {tab === "instances" && <AgentInstancesPanel instances={agentInstances} agents={agents} onRefresh={() => void loadAgentInstances()} />}
               </ProjectWorkspacePage>
             ))}
