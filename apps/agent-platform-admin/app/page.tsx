@@ -8,7 +8,15 @@ import { ConversationPage } from "./components/pages/conversation-page";
 import { LlmConfigurationsPage } from "./components/pages/llm-configurations-page";
 import { ProjectWorkspacePage } from "./components/pages/project-workspace-page";
 import { AgentInstancesPanel } from "./components/agent-instances-panel";
+import { McpToolsDialog } from "./components/mcp-tools-dialog";
 import { ProjectOverview } from "./components/project-overview";
+import { UsagePage } from "./components/pages/usage-page";
+import {
+  defaultWebhookEvents,
+  projectTabs,
+  webhookEventTypes,
+} from "./lib/admin-page-constants";
+import { readError } from "./lib/http";
 import type {
   AdminPage,
   Agent,
@@ -26,25 +34,6 @@ import type {
   WebhookMetrics,
 } from "./types";
 
-const webhookEventTypes = [
-  ["project.updated", "Project updated"],
-  ["agent.created", "Agent created"],
-  ["agent.updated", "Agent updated"],
-  ["agent.deleted", "Agent deleted"],
-  ["agent.message", "Agent message"],
-  ["agent.tool_call", "Agent tool call"],
-  ["mcp_server.created", "MCP server created"],
-  ["mcp_server.updated", "MCP server updated"],
-  ["mcp_server.deleted", "MCP server deleted"],
-] as const;
-
-const tabs: { id: ProjectTab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "agents", label: "Agents" },
-  { id: "servers", label: "Servers" },
-  { id: "webhooks", label: "Webhooks" },
-  { id: "instances", label: "Instances" },
-];
 const jimAgentId = process.env.NEXT_PUBLIC_JIM_AGENT_ID ?? "";
 
 export default function HomePage() {
@@ -99,13 +88,9 @@ export default function HomePage() {
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
-  const [webhookEvents, setWebhookEvents] = useState<string[]>([
-    "agent.created",
-    "agent.updated",
-    "agent.deleted",
-    "agent.message",
-    "agent.tool_call",
-  ]);
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(
+    defaultWebhookEvents,
+  );
   const [isRetryingWebhooks, setIsRetryingWebhooks] = useState(false);
   const [llmConfigurations, setLlmConfigurations] = useState<
     LlmConfiguration[]
@@ -428,16 +413,6 @@ export default function HomePage() {
     setTab("overview");
     setMessage(null);
   };
-  const readError = async (response: Response) => {
-    const body = (await response.json().catch(() => null)) as {
-      errors?: Record<string, string[]>;
-      title?: string;
-    } | null;
-    return body?.errors
-      ? Object.values(body.errors).flat()[0]
-      : (body?.title ?? "The request could not be saved.");
-  };
-
   const createProject = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSaving(true);
@@ -745,13 +720,7 @@ export default function HomePage() {
     setWebhookUrl(webhook?.endpointUrl ?? "");
     setWebhookSecret("");
     setWebhookEvents(
-      webhook?.events ?? [
-        "agent.created",
-        "agent.updated",
-        "agent.deleted",
-        "agent.message",
-        "agent.tool_call",
-      ],
+      webhook?.events ?? defaultWebhookEvents,
     );
     setIsWebhookFormOpen(true);
     setMessage(null);
@@ -939,7 +908,7 @@ export default function HomePage() {
                 </span>
               </div>
             ) : (
-              <ProjectWorkspacePage project={selectedProject} tab={tab} tabs={tabs} onTabChange={setTab}>
+              <ProjectWorkspacePage project={selectedProject} tab={tab} tabs={projectTabs} onTabChange={setTab}>
                 {tab === "overview" && (
                   <ProjectOverview project={selectedProject} agentCount={agents.length} serverCount={mcpServers.length} />
                 )}
@@ -1551,155 +1520,10 @@ export default function HomePage() {
             ))}
           {page === "chat" && <ConversationPage agentId={jimAgentId} projectId={jimProjectId} instances={jimInstances} activeInstanceId={activeInstanceId} timeline={timeline} initialPrompt={initialPrompt} outgoingMessage={outgoingMessage} messageDelivery={messageDelivery} isSending={isSendingMessage} onInitialPromptChange={setInitialPrompt} onOutgoingMessageChange={setOutgoingMessage} onMessageDeliveryChange={setMessageDelivery} onStart={startConversation} onSend={sendConversationMessage} onSelectInstance={setActiveInstanceId} onDeleteInstance={(instance) => void deleteConversation(instance)} />}
           {page === "llm" && <LlmConfigurationsPage configurations={llmConfigurations} editing={editingLlm} isFormOpen={isLlmFormOpen} isSaving={isSaving} name={llmName} providerUrl={providerUrl} modelName={modelName} apiKey={apiKey} onOpenForm={() => openLlmForm()} onSubmit={saveLlm} onCancel={() => setIsLlmFormOpen(false)} onNameChange={setLlmName} onProviderUrlChange={setProviderUrl} onModelNameChange={setModelName} onApiKeyChange={setApiKey} onEdit={openLlmForm} onDelete={(item) => void deleteLlm(item)} />}
-          {page === "usage" && (
-            <section className="usage-page" aria-labelledby="usage-title">
-              <div className="project-heading">
-                <p className="eyebrow">Observability</p>
-                <h1 id="usage-title">LLM usage</h1>
-                <p>Successful model calls, grouped into 15-minute UTC windows.</p>
-              </div>
-              <div className="usage-actions">
-                <span aria-live="polite">{isLoadingUsage ? "Refreshing usage…" : ""}</span>
-                <button className="text-button" type="button" onClick={() => void loadUsage()} disabled={isLoadingUsage}>Refresh</button>
-              </div>
-              <UsageSummary title="Platform" buckets={platformUsage} />
-              <UsageSummary title={selectedProject ? `${selectedProject.name} project` : "Selected project"} buckets={projectUsage} />
-              <section className="project-panel usage-breakdown">
-                <div className="panel-heading"><div><p className="eyebrow">Agents</p><h2>Usage by agent</h2></div></div>
-                {agents.length === 0 ? <div className="empty-state compact-empty"><strong>No agents in this project</strong></div> : <UsageBreakdown items={agents.map((agent) => ({ id: agent.id, label: agent.name, buckets: agentUsage[agent.id] ?? [] }))} />}
-              </section>
-              <section className="project-panel usage-breakdown">
-                <div className="panel-heading"><div><p className="eyebrow">Models</p><h2>Usage by LLM configuration</h2></div></div>
-                {llmConfigurations.length === 0 ? <div className="empty-state compact-empty"><strong>No LLM configurations</strong></div> : <UsageBreakdown items={llmConfigurations.map((llm) => ({ id: llm.id, label: `${llm.name} (${llm.modelName})`, buckets: llmUsage[llm.id] ?? [] }))} />}
-              </section>
-            </section>
-          )}
+          {page === "usage" && <UsagePage selectedProject={selectedProject} agents={agents} llmConfigurations={llmConfigurations} platformUsage={platformUsage} projectUsage={projectUsage} agentUsage={agentUsage} llmUsage={llmUsage} isLoading={isLoadingUsage} onRefresh={() => void loadUsage()} />}
         </main>
       </div>
-      {viewingToolsFor && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setViewingToolsFor(null);
-          }}
-        >
-          <section
-            className="tools-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mcp-tools-title"
-          >
-            <header className="tools-modal-heading">
-              <div>
-                <p className="eyebrow">MCP server tools</p>
-                <h2 id="mcp-tools-title">{viewingToolsFor.name}</h2>
-                <p>{viewingToolsFor.endpoint}</p>
-              </div>
-              <button
-                className="modal-close"
-                type="button"
-                onClick={() => setViewingToolsFor(null)}
-                aria-label="Close tools dialog"
-              >
-                ×
-              </button>
-            </header>
-            <div className="tools-modal-content" aria-live="polite">
-              {isLoadingMcpTools ? (
-                <div className="empty-state">
-                  <strong>Loading tools…</strong>
-                  <span>Fetching the server’s tool definitions.</span>
-                </div>
-              ) : mcpToolsError ? (
-                <p className="status-message" role="alert">
-                  {mcpToolsError}
-                </p>
-              ) : mcpTools.length === 0 ? (
-                <div className="empty-state">
-                  <strong>No tools found</strong>
-                  <span>This server did not return any tool definitions.</span>
-                </div>
-              ) : (
-                <div className="tools-table-wrap">
-                  <table className="tools-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col">Description</th>
-                        <th scope="col">Input schema</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mcpTools.map((tool, index) => (
-                        <tr key={`${tool.name}-${index}`}>
-                          <th scope="row">{tool.name}</th>
-                          <td>{tool.description || "—"}</td>
-                          <td>
-                            <pre>
-                              {JSON.stringify(tool.inputSchema ?? {}, null, 2)}
-                            </pre>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <footer className="tools-modal-footer">
-              <button
-                className="text-button"
-                type="button"
-                onClick={() => setViewingToolsFor(null)}
-              >
-                Close
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
+      {viewingToolsFor && <McpToolsDialog server={viewingToolsFor} tools={mcpTools} isLoading={isLoadingMcpTools} error={mcpToolsError} onClose={() => setViewingToolsFor(null)} />}
     </div>
   );
 }
-
-function ComingSoon({ title, text }: { title: string; text: string }) {
-  return (
-    <section className="project-panel tab-panel empty-state">
-      <strong>{title}</strong>
-      <span>{text}</span>
-      <span className="coming-soon">Coming soon</span>
-    </section>
-  );
-}
-
-function UsageSummary({ title, buckets }: { title: string; buckets: UsageBucket[] }) {
-  const totals = sumUsage(buckets);
-  return (
-    <section className="project-panel usage-summary">
-      <div className="panel-heading"><div><p className="eyebrow">Usage total</p><h2>{title}</h2></div><span>{buckets.length} windows</span></div>
-      <dl className="usage-metrics">
-        <div><dt>Calls</dt><dd>{formatNumber(totals.callCount)}</dd></div>
-        <div><dt>Total tokens</dt><dd>{formatNumber(totals.totalTokens)}</dd></div>
-        <div><dt>Input tokens</dt><dd>{formatNumber(totals.inputTokens)}</dd></div>
-        <div><dt>Output tokens</dt><dd>{formatNumber(totals.outputTokens)}</dd></div>
-        <div><dt>Cached input</dt><dd>{formatNumber(totals.cachedInputTokens)}</dd></div>
-        <div><dt>Reasoning tokens</dt><dd>{formatNumber(totals.reasoningTokens)}</dd></div>
-      </dl>
-      {buckets.length > 0 && <UsageWindows buckets={buckets} />}
-    </section>
-  );
-}
-
-function UsageBreakdown({ items }: { items: { id: string; label: string; buckets: UsageBucket[] }[] }) {
-  return <div className="usage-table-wrap"><table className="usage-table"><thead><tr><th>Name</th><th>Calls</th><th>Total tokens</th><th>Input</th><th>Output</th><th>Cached</th><th>Reasoning</th></tr></thead><tbody>{items.map((item) => { const totals = sumUsage(item.buckets); return <tr key={item.id}><th>{item.label}</th><td>{formatNumber(totals.callCount)}</td><td>{formatNumber(totals.totalTokens)}</td><td>{formatNumber(totals.inputTokens)}</td><td>{formatNumber(totals.outputTokens)}</td><td>{formatNumber(totals.cachedInputTokens)}</td><td>{formatNumber(totals.reasoningTokens)}</td></tr>; })}</tbody></table></div>;
-}
-
-function UsageWindows({ buckets }: { buckets: UsageBucket[] }) {
-  return <div className="usage-table-wrap"><table className="usage-table"><caption>Most recent 15-minute windows</caption><thead><tr><th>Window start (UTC)</th><th>Calls</th><th>Total tokens</th><th>Input</th><th>Output</th></tr></thead><tbody>{buckets.slice(-8).reverse().map((bucket) => <tr key={bucket.bucketStart}><th>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(bucket.bucketStart))}</th><td>{formatNumber(bucket.callCount)}</td><td>{formatNumber(bucket.totalTokens)}</td><td>{formatNumber(bucket.inputTokens)}</td><td>{formatNumber(bucket.outputTokens)}</td></tr>)}</tbody></table></div>;
-}
-
-function sumUsage(buckets: UsageBucket[]) {
-  return buckets.reduce((total, bucket) => ({ callCount: total.callCount + bucket.callCount, inputTokens: total.inputTokens + bucket.inputTokens, cachedInputTokens: total.cachedInputTokens + bucket.cachedInputTokens, outputTokens: total.outputTokens + bucket.outputTokens, reasoningTokens: total.reasoningTokens + bucket.reasoningTokens, totalTokens: total.totalTokens + bucket.totalTokens }), { callCount: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0 });
-}
-
-function formatNumber(value: number) { return new Intl.NumberFormat().format(value); }
