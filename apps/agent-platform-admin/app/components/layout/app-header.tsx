@@ -1,0 +1,38 @@
+import { useWorkspaceNavigation } from "../../contexts/workspace-navigation-context";
+
+type AppHeaderProps = { onCreateLlm: () => void };
+
+export function AppHeader({ onCreateLlm }: AppHeaderProps) {
+  const { page, selectedProject, openProjectForm } = useWorkspaceNavigation();
+  const label =
+    page === "projects"
+      ? "Projects"
+      : page === "chat"
+        ? "Chat with Jim"
+        : page === "usage"
+          ? "Usage"
+          : "Platform";
+
+  return (
+    <header className="topbar">
+      <div className="breadcrumb">
+        <span>{label}</span>
+        {page === "projects" && (
+          <>
+            <span aria-hidden="true">/</span>
+            <strong>{selectedProject?.name ?? "Select a project"}</strong>
+          </>
+        )}
+      </div>
+      {page === "projects" ? (
+        <button className="new-button" type="button" onClick={openProjectForm}>
+          New project
+        </button>
+      ) : page === "llm" ? (
+        <button className="new-button" type="button" onClick={onCreateLlm}>
+          New configuration
+        </button>
+      ) : null}
+    </header>
+  );
+}
