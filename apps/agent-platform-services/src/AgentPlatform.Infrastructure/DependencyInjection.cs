@@ -6,6 +6,7 @@ using AgentPlatform.Application.Runtime;
 using AgentPlatform.Infrastructure.Webhooks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace AgentPlatform.Infrastructure;
 
@@ -13,10 +14,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
+        var dataSourceConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            GssEncryptionMode = GssEncryptionMode.Disable,
+        }.ConnectionString;
+
+        services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(dataSourceConnectionString));
         services.AddScoped<IProjectRepository, EfProjectRepository>();
         services.AddScoped<IAgentRepository, EfAgentRepository>();
-        services.AddScoped<IAgentInstanceRepository, EfAgentInstanceRepository>();
+        services.AddScoped<IAgentThreadRepository, EfAgentThreadRepository>();
         services.AddScoped<ILlmConfigurationRepository, EfLlmConfigurationRepository>();
         services.AddScoped<IMcpServerRepository, EfMcpServerRepository>();
         services.AddHttpClient("mcp");

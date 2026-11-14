@@ -17,26 +17,26 @@ public sealed class ExecutionWorker(IServiceScopeFactory scopeFactory, ILogger<E
             try
             {
                 using var discoveryScope = scopeFactory.CreateScope();
-                var repository = discoveryScope.ServiceProvider.GetRequiredService<IAgentInstanceRepository>();
+                var repository = discoveryScope.ServiceProvider.GetRequiredService<IAgentThreadRepository>();
                 var runnable = await repository.ListRunningAsync(10, stoppingToken);
-                foreach (var instance in runnable)
+                foreach (var thread in runnable)
                 {
                     using var executionScope = scopeFactory.CreateScope();
                     var runtime = executionScope.ServiceProvider.GetRequiredService<AgentRuntimeService>();
                     try
                     {
-                        await runtime.RunAsync(instance.ProjectId, instance.Id, stoppingToken);
+                        await runtime.RunAsync(thread.ProjectId, thread.Id, stoppingToken);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { throw; }
                     catch (Exception exception)
                     {
-                        logger.LogError(exception, "Agent instance {InstanceId} failed.", instance.Id);
-                        await runtime.MarkFailedAsync(instance.ProjectId, instance.Id, stoppingToken);
+                        logger.LogError(exception, "Agent thread {ThreadId} failed.", thread.Id);
+                        await runtime.MarkFailedAsync(thread.ProjectId, thread.Id, stoppingToken);
                     }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception exception) { logger.LogError(exception, "Could not poll runnable agent instances."); }
+            catch (Exception exception) { logger.LogError(exception, "Could not poll runnable agent threads."); }
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }

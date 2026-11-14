@@ -17,7 +17,7 @@ export const projectTabs: ReadonlyArray<{ id: ProjectTab; label: string }> = [
   { id: "agents", label: "Agents" },
   { id: "servers", label: "Servers" },
   { id: "webhooks", label: "Webhooks" },
-  { id: "instances", label: "Instances" },
+  { id: "threads", label: "Threads" },
 ];
 
 export const defaultWebhookEvents = [

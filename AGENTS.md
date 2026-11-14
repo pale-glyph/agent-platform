@@ -12,7 +12,7 @@ Agent Platform manages and executes asynchronous AI-agent work, including operat
 - Design all message handlers for at-least-once delivery: use stable message identifiers and idempotent state transitions.
 - Keep HTTP/control-plane responsibilities separate from background execution workers.
 - Model operator-to-agent communication as a durable, ordered conversation associated with a task or run; do not treat steering as an unpersisted side channel.
-- Treat agent versions as immutable executable configurations. Pin every agent instance to one version and give it exactly one conversation thread.
+- Treat agent versions as immutable executable configurations. Pin every agent thread to one version and give it exactly one conversation thread.
 - Make MCP access deny-by-default: an agent version may call a tool only through an explicit grant to a same-project MCP server.
 - The built-in platform MCP server is an exception to project ownership, but not project scope: it must derive scope from the calling pinned agent version and require an explicit, tool-level grant. A platform administration agent is otherwise a regular project agent created through the UI.
 
@@ -28,7 +28,7 @@ Agent Platform manages and executes asynchronous AI-agent work, including operat
 
 - Build the administration application in `apps/agent-platform-admin` with Next.js, React, and TypeScript.
 - Keep business rules in the .NET API. The browser must never connect directly to PostgreSQL or NATS.
-- Keep agent-instance conversation and steering visible as tracked commands with delivery/outcome status, not optimistic chat-only state.
+- Keep agent-thread conversation and steering visible as tracked commands with delivery/outcome status, not optimistic chat-only state.
 - Require accessible controls, keyboard support, and labelled asynchronous status feedback for administrative actions.
 
 ## Data and messaging

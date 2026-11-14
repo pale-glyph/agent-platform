@@ -6,7 +6,7 @@
 
 ## Context
 
-The platform needs a human-facing UI for project administration and CRUD operations: projects, agents, immutable agent versions, MCP servers, explicit tool grants, event-stream targets, agent instances, conversations, and execution runs. It must also make in-flight agent steering and platform-administration-agent setup understandable and safe.
+The platform needs a human-facing UI for project administration and CRUD operations: projects, agents, immutable agent versions, MCP servers, explicit tool grants, event-stream targets, agent threads, conversations, and execution runs. It must also make in-flight agent steering and platform-administration-agent setup understandable and safe.
 
 The UI should use a current, well-supported frontend stack while keeping the .NET API, PostgreSQL, and NATS-based execution platform as the system of record and core business implementation.
 
@@ -55,27 +55,27 @@ flowchart LR
 /projects/:projectId/agents/:agentId/versions/:versionId
 /projects/:projectId/mcp-servers
 /projects/:projectId/event-streams
-/projects/:projectId/instances
-/projects/:projectId/instances/:instanceId
-/projects/:projectId/instances/:instanceId/conversation
-/projects/:projectId/instances/:instanceId/runs
+/projects/:projectId/threads
+/projects/:projectId/threads/:threadId
+/projects/:projectId/threads/:threadId/conversation
+/projects/:projectId/threads/:threadId/runs
 ```
 
-The instance detail page is the operator workspace. It presents the single conversation thread, current instance and run state, available steering actions, tool activity, and an event timeline. A steering action must display whether it is queued, accepted, rejected, superseded, or expired; it cannot be represented as an untracked chat message.
+The thread detail page is the operator workspace. It presents the single conversation, current thread and run state, available steering actions, tool activity, and an event timeline. A steering action must display whether it is queued, accepted, rejected, superseded, or expired; it cannot be represented as an untracked chat message.
 
 ## Data and interaction patterns
 
 - Fetch read models from the .NET API; do not reconstruct domain state from raw NATS messages in the browser.
 - Make all mutations explicit commands with a visible pending, success, and error state.
 - Send a client-generated idempotency key for mutation requests where the API supports one, especially for starting runs and sending steering instructions.
-- Refresh instance status after mutations. The initial version may poll a status endpoint; a later design may add API-mediated Server-Sent Events or WebSockets for live updates.
+- Refresh thread status after mutations. The initial version may poll a status endpoint; a later design may add API-mediated Server-Sent Events or WebSockets for live updates.
 - Render server data where it reduces client JavaScript and use client components only for interactive behaviour such as forms, filtering, and the conversation composer.
 - Keep access tokens and service credentials out of client-side code. The authentication and authorisation design is intentionally deferred.
 
 ## Project conventions
 
 - Enable TypeScript strict mode, linting, formatting, and automated accessibility checks.
-- Prefer feature-oriented organisation (for example, `features/agents`, `features/instances`) over a single global component directory.
+- Prefer feature-oriented organisation (for example, `features/agents`, `features/threads`) over a single global component directory.
 - Define API request/response types in a generated or explicitly versioned client package; do not duplicate ungoverned shapes across pages.
 - Treat agent instructions, tool arguments/results, and conversation content as potentially sensitive. Escape rendered text, redact sensitive fields, and avoid logging payloads in the browser.
 - Support keyboard navigation, visible focus, labelled controls, and status announcements for asynchronous actions.

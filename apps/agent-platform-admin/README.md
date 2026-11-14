@@ -1,6 +1,6 @@
 # Agent Platform Administration UI
 
-The Next.js application for administering projects, agents, MCP servers, agent instances, and execution runs.
+The Next.js application for administering projects, agents, MCP servers, agent threads, and execution runs.
 
 ## UI organization
 

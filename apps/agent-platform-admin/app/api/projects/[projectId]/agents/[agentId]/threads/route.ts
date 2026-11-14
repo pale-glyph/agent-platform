@@ -5,7 +5,7 @@ const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
 export async function POST(request: NextRequest, context: { params: Promise<{ projectId: string; agentId: string }> }) {
   try {
     const { projectId, agentId } = await context.params;
-    const response = await fetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}/instances`, { method: "POST", body: await request.text(), headers: { "Content-Type": "application/json" }, cache: "no-store" });
+    const response = await fetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}/threads`, { method: "POST", body: await request.text(), headers: { "Content-Type": "application/json" }, cache: "no-store" });
     return new NextResponse(response.body, { status: response.status, headers: { "Content-Type": response.headers.get("Content-Type") ?? "application/json" } });
   } catch { return NextResponse.json({ title: "The API service is unavailable." }, { status: 503 }); }
 }

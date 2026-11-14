@@ -71,7 +71,7 @@ export type WebhookDelivery = {
   completedAt: string | null;
 };
 
-export type AgentInstance = {
+export type AgentThread = {
   id: string;
   projectId: string;
   agentId: string;
@@ -81,9 +81,9 @@ export type AgentInstance = {
   createdAt: string;
 };
 
-export type TimelineEntry = {
+export type ThreadEntry = {
   id: string;
-  instanceId: string;
+  threadId: string;
   sequenceNumber: number;
   type: "Message" | "ToolCall";
   role: "User" | "Agent" | null;
@@ -96,7 +96,7 @@ export type TimelineEntry = {
   createdAt: string;
 };
 
-export type TimelinePage = { items: TimelineEntry[]; nextCursor: number | null };
+export type ThreadPage = { items: ThreadEntry[]; nextCursor: number | null };
 
 export type UsageBucket = {
   bucketStart: string;
@@ -108,5 +108,5 @@ export type UsageBucket = {
   totalTokens: number;
 };
 
-export type ProjectTab = "overview" | "agents" | "servers" | "webhooks" | "instances";
+export type ProjectTab = "overview" | "agents" | "servers" | "webhooks" | "threads";
 export type AdminPage = "projects" | "chat" | "llm" | "usage";

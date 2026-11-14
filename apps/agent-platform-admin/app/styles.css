@@ -251,11 +251,11 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .conversation-compose textarea { min-height: 4.5rem; resize: vertical; }
 .conversation-compose > div { align-items: center; display: flex; gap: 0.6rem; justify-content: space-between; }
 .conversation-compose select { max-width: 15rem; }
-.instance-table-wrap { overflow: auto; }
-.instance-table { border-collapse: collapse; min-width: 48rem; text-align: left; width: 100%; }
-.instance-table th, .instance-table td { border-top: 1px solid #252f3e; padding: 0.8rem 1rem; vertical-align: middle; }
-.instance-table thead th { background: #111722; color: #8491a3; font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
-.instance-table tbody th { color: #edf1f8; font-size: 0.84rem; }
-.instance-table td { color: #b6c0ce; font-size: 0.8rem; }
+.thread-table-wrap { overflow: auto; }
+.thread-table { border-collapse: collapse; min-width: 48rem; text-align: left; width: 100%; }
+.thread-table th, .thread-table td { border-top: 1px solid #252f3e; padding: 0.8rem 1rem; vertical-align: middle; }
+.thread-table thead th { background: #111722; color: #8491a3; font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.thread-table tbody th { color: #edf1f8; font-size: 0.84rem; }
+.thread-table td { color: #b6c0ce; font-size: 0.8rem; }
 @media (max-width: 760px) { .conversation-layout { grid-template-columns: 1fr; } .conversation-list { border-bottom: 1px solid #2a3443; border-right: 0; } .conversation-history { max-height: 10rem; } .conversation-entry { max-width: 100%; } }
 @media (max-width: 760px) { .webhook-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .webhook-event-options { grid-template-columns: 1fr; } .deliveries-heading { padding-left: 1rem; padding-right: 1rem; } }
