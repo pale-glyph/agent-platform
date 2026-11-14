@@ -96,6 +96,7 @@ stateDiagram-v2
 - [High-level domain architecture](docs/design/001-high-level-domain-architecture.md) — project-scoped resources, agent definitions, MCP servers, and stateful agent threads.
 - [Administration UI architecture](docs/design/002-administration-ui-architecture.md) — the Next.js-based administration application and its boundaries.
 - [Platform administration agent](docs/design/003-platform-administration-agent.md) — a UI-created agent that configures its project through explicitly granted MCP tools.
+- [Agent consumer specification](docs/agent-consumer-specification.md) — integrate a coding agent with chat threads and signed webhook events.
 
 ## Repository status
 

@@ -38,9 +38,8 @@ public sealed class WebhookEndpoint
         Name = Required(name, MaximumNameLength, "Webhook name");
         EndpointUrl = Required(endpointUrl, MaximumUrlLength, "Webhook URL");
         if (!Uri.TryCreate(EndpointUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps &&
-             !(uri.Scheme == Uri.UriSchemeHttp && (uri.IsLoopback || uri.Host.Equals("admin", StringComparison.OrdinalIgnoreCase)))))
-            throw new ArgumentException("Webhook URL must use HTTPS. HTTP is allowed only for loopback addresses or the internal admin service.", nameof(endpointUrl));
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            throw new ArgumentException("Webhook URL must be an absolute HTTP or HTTPS URL.", nameof(endpointUrl));
 
         var normalizedEvents = (events ?? []).Select(item => item?.Trim() ?? "").Where(item => item.Length > 0).Distinct(StringComparer.Ordinal).Order().ToArray();
         if (normalizedEvents.Length == 0) throw new ArgumentException("Select at least one event.", nameof(events));

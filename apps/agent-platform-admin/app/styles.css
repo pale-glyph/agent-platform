@@ -117,6 +117,11 @@ h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); letter-spacing: -0.045em; line-heigh
 .project-details > div { background: #111722; padding: 1rem 1.5rem; }
 .project-details dt { color: #8491a3; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
 .project-details dd { color: #e9eff7; margin: 0.4rem 0 0; }
+.project-uuid { align-items: center; display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.project-uuid code { color: #c9d2df; font: 0.72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.project-uuid button { background: transparent; border: 1px solid #354153; border-radius: 0.35rem; color: #aab5c8; font-size: 0.7rem; font-weight: 650; padding: 0.25rem 0.45rem; }
+.project-uuid button:hover, .project-uuid button:focus-visible { background: #263142; color: #f4f7fb; outline: 2px solid #95e8b4; outline-offset: 1px; }
+.sr-only { clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
 .workspace-empty { margin-top: 3rem; }
 .coming-soon { background: #202b3b; border-radius: 999px; color: #aab5c8; font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.55rem; }
 .resource-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: clamp(2.5rem, 6vw, 4.5rem); }
