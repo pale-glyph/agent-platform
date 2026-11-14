@@ -22,8 +22,7 @@ export function WebhooksTab(props: Props) {
                       </button>
                     </div>
                     <p className="webhook-security-note">
-                      Deliveries use HTTPS, except for the internal admin service,
-                      and include an HMAC-SHA256 signature
+                      Deliveries may use HTTP or HTTPS and include an HMAC-SHA256 signature
                       in <code>X-Agent-Platform-Signature</code>. Use the event
                       ID to handle retries idempotently.
                     </p>
@@ -41,7 +40,7 @@ export function WebhooksTab(props: Props) {
                         />
                         <div className="webhook-url-label">
                           <label htmlFor="webhook-url">
-                            HTTPS endpoint <small>(HTTP is allowed for the internal admin service)</small>
+                            HTTP or HTTPS endpoint
                           </label>
                           <button
                             className="text-button"
@@ -63,7 +62,7 @@ export function WebhooksTab(props: Props) {
                           onChange={(event) =>
                             setWebhookUrl(event.target.value)
                           }
-                          placeholder="https://receiver.example/events"
+                          placeholder="http://receiver.example/events"
                           required
                         />
                         <label htmlFor="webhook-secret">
@@ -151,7 +150,7 @@ export function WebhooksTab(props: Props) {
                       <div className="empty-state">
                         <strong>No webhooks configured</strong>
                         <span>
-                          Add a secure HTTPS receiver and select the project
+                          Add an HTTP or HTTPS receiver and select the project
                           events it should receive.
                         </span>
                       </div>
