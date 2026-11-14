@@ -159,6 +159,16 @@ docker compose ps
 
 The configured host ports are defined in `.env`; the template exposes the administration UI at `http://localhost:3010` and PostgreSQL at `localhost:5420`.
 
+### External MCP servers
+
+The API and worker also join the external Docker network named by `MCP_NETWORK_NAME` (default: `agent-platform-mcp`). Create it once before starting the stack:
+
+```bash
+docker network create agent-platform-mcp
+```
+
+Attach each separately deployed MCP server container to that network. Configure its project MCP-server endpoint using that container's network DNS name, for example `http://my-mcp-server:3000/mcp`. MCP server ports do not need to be published to the host unless another host-side client needs access.
+
 For host-based development, install the .NET SDK and Node.js as well. The backend projects are under `apps/agent-platform-services/src`:
 
 ```bash

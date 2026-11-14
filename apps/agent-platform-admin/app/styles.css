@@ -78,6 +78,10 @@ h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); letter-spacing: -0.045em; line-heigh
 .agent-form textarea { min-height: 5.5rem; resize: vertical; }
 .agent-form > div { display: flex; gap: 0.6rem; margin-top: 0.35rem; }
 .agent-misconfigured { background: #482634; border-radius: 999px; color: #ffb9c6; font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.48rem; width: fit-content; }
+.agent-uuid { align-items: center; color: #8491a3; display: flex; flex-wrap: wrap; font-size: 0.72rem; gap: 0.45rem; }
+.agent-uuid code { color: #c9d2df; font: 0.72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.agent-uuid button { background: transparent; border: 1px solid #354153; border-radius: 0.35rem; color: #aab5c8; cursor: pointer; font-size: 0.7rem; font-weight: 650; padding: 0.25rem 0.45rem; }
+.agent-uuid button:hover, .agent-uuid button:focus-visible { background: #263142; color: #f4f7fb; outline: 2px solid #95e8b4; outline-offset: 1px; }
 .mcp-tool-options { border: 1px solid #354153; border-radius: 0.5rem; display: grid; gap: 0.8rem; margin: 0.5rem 0; padding: 0.8rem 1rem 1rem; }
 .mcp-tool-options legend { color: #c9d2df; font-size: 0.8rem; font-weight: 700; padding: 0 0.3rem; }
 .mcp-tool-options > p { color: #8491a3; font-size: 0.78rem; margin: 0; }
