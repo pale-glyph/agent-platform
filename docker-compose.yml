@@ -14,6 +14,9 @@ services:
         condition: service_healthy
       nats:
         condition: service_healthy
+    networks:
+      - default
+      - mcp
     restart: unless-stopped
 
   worker:
@@ -30,6 +33,9 @@ services:
         condition: service_healthy
       nats:
         condition: service_healthy
+    networks:
+      - default
+      - mcp
     restart: unless-stopped
 
   admin:
@@ -80,3 +86,8 @@ services:
 volumes:
   postgres-data:
   nats-data:
+
+networks:
+  mcp:
+    name: ${MCP_NETWORK_NAME:-agent-platform-mcp}
+    external: true

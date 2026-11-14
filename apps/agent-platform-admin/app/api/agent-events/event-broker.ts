@@ -2,7 +2,7 @@ export type AgentWebhookEvent = {
   eventId: string;
   projectId: string;
   eventType: "agent.message" | "agent.tool_call";
-  data: { instanceId?: string };
+  data: { threadId?: string };
 };
 
 type Listener = (event: AgentWebhookEvent) => void;

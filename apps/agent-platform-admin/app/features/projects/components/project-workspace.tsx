@@ -7,7 +7,7 @@ import { projectTabs } from "../constants";
 import { useAgentForm } from "../hooks/use-agent-form";
 import { useMcpServerForm } from "../hooks/use-mcp-server-form";
 import type { useProjectResources } from "../hooks/use-project-resources";
-import { AgentInstancesPanel } from "./agent-instances-panel";
+import { AgentThreadsPanel } from "./agent-threads-panel";
 import { AgentsTab } from "./agents-tab";
 import { ProjectOverview } from "./project-overview";
 import { ProjectWorkspacePage } from "./project-workspace-page";
@@ -106,11 +106,11 @@ export function ProjectWorkspace({
             onMessage={reportMessage}
           />
         )}
-        {tab === "instances" && (
-          <AgentInstancesPanel
-            instances={resources.agentInstances}
+        {tab === "threads" && (
+          <AgentThreadsPanel
+            threads={resources.agentThreads}
             agents={resources.agents}
-            onRefresh={() => void resources.refreshAgentInstances()}
+            onRefresh={() => void resources.refreshAgentThreads()}
           />
         )}
       </ProjectWorkspacePage>

@@ -3,7 +3,7 @@ using AgentPlatform.Domain.Llm;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Domain.Projects;
 using AgentPlatform.Domain.Webhooks;
-using AgentPlatform.Domain.Instances;
+using AgentPlatform.Domain.Threads;
 using AgentPlatform.Domain.Metrics;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,8 +18,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<McpServer> McpServers => Set<McpServer>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
-    public DbSet<AgentInstance> AgentInstances => Set<AgentInstance>();
-    public DbSet<AgentExecutionEntry> AgentExecutionEntries => Set<AgentExecutionEntry>();
+    public DbSet<AgentThread> AgentThreads => Set<AgentThread>();
+    public DbSet<AgentThreadEntry> AgentThreadEntries => Set<AgentThreadEntry>();
     public DbSet<UsageMetricBucket> UsageMetricBuckets => Set<UsageMetricBucket>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -37,38 +37,38 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         usage.Property(item => item.ReasoningTokens).HasColumnName("reasoning_tokens").IsRequired();
         usage.Property(item => item.TotalTokens).HasColumnName("total_tokens").IsRequired();
 
-        var instance = modelBuilder.Entity<AgentInstance>();
-        instance.ToTable("agent_instances");
-        instance.HasKey(item => item.Id);
-        instance.Property(item => item.Id).HasColumnName("id");
-        instance.Property(item => item.ProjectId).HasColumnName("project_id");
-        instance.Property(item => item.AgentId).HasColumnName("agent_id");
-        instance.Property(item => item.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
-        instance.Property(item => item.NextSequenceNumber).HasColumnName("next_sequence_number").IsRequired();
-        instance.Property(item => item.PendingQueuedMessageId).HasColumnName("pending_queued_message_id");
-        instance.Property(item => item.CancellationRequestedAt).HasColumnName("cancellation_requested_at");
-        instance.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
-        instance.HasIndex(item => new { item.ProjectId, item.CreatedAt });
-        instance.HasOne<AgentDefinition>().WithMany().HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
-        instance.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        var thread = modelBuilder.Entity<AgentThread>();
+        thread.ToTable("agent_threads");
+        thread.HasKey(item => item.Id);
+        thread.Property(item => item.Id).HasColumnName("id");
+        thread.Property(item => item.ProjectId).HasColumnName("project_id");
+        thread.Property(item => item.AgentId).HasColumnName("agent_id");
+        thread.Property(item => item.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
+        thread.Property(item => item.NextSequenceNumber).HasColumnName("next_sequence_number").IsRequired();
+        thread.Property(item => item.PendingQueuedMessageId).HasColumnName("pending_queued_message_id");
+        thread.Property(item => item.CancellationRequestedAt).HasColumnName("cancellation_requested_at");
+        thread.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        thread.HasIndex(item => new { item.ProjectId, item.CreatedAt });
+        thread.HasOne<AgentDefinition>().WithMany().HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
+        thread.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
 
-        var entry = modelBuilder.Entity<AgentExecutionEntry>();
-        entry.ToTable("agent_execution_entries");
+        var entry = modelBuilder.Entity<AgentThreadEntry>();
+        entry.ToTable("agent_thread_entries");
         entry.HasKey(item => item.Id);
         entry.Property(item => item.Id).HasColumnName("id");
-        entry.Property(item => item.InstanceId).HasColumnName("instance_id");
+        entry.Property(item => item.ThreadId).HasColumnName("thread_id");
         entry.Property(item => item.SequenceNumber).HasColumnName("sequence_number");
         entry.Property(item => item.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20).IsRequired();
         entry.Property(item => item.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(20);
         entry.Property(item => item.Delivery).HasColumnName("delivery").HasConversion<string>().HasMaxLength(20);
         entry.Property(item => item.MessageStatus).HasColumnName("message_status").HasConversion<string>().HasMaxLength(20);
-        entry.Property(item => item.Content).HasColumnName("content").HasMaxLength(AgentExecutionEntry.MaximumContentLength);
-        entry.Property(item => item.ToolName).HasColumnName("tool_name").HasMaxLength(AgentExecutionEntry.MaximumToolNameLength);
-        entry.Property(item => item.ToolArguments).HasColumnName("tool_arguments").HasMaxLength(AgentExecutionEntry.MaximumContentLength);
-        entry.Property(item => item.ToolResult).HasColumnName("tool_result").HasMaxLength(AgentExecutionEntry.MaximumContentLength);
+        entry.Property(item => item.Content).HasColumnName("content").HasMaxLength(AgentThreadEntry.MaximumContentLength);
+        entry.Property(item => item.ToolName).HasColumnName("tool_name").HasMaxLength(AgentThreadEntry.MaximumToolNameLength);
+        entry.Property(item => item.ToolArguments).HasColumnName("tool_arguments").HasMaxLength(AgentThreadEntry.MaximumContentLength);
+        entry.Property(item => item.ToolResult).HasColumnName("tool_result").HasMaxLength(AgentThreadEntry.MaximumContentLength);
         entry.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
-        entry.HasIndex(item => new { item.InstanceId, item.SequenceNumber }).IsUnique();
-        entry.HasOne<AgentInstance>().WithMany().HasForeignKey(item => item.InstanceId).OnDelete(DeleteBehavior.Cascade);
+        entry.HasIndex(item => new { item.ThreadId, item.SequenceNumber }).IsUnique();
+        entry.HasOne<AgentThread>().WithMany().HasForeignKey(item => item.ThreadId).OnDelete(DeleteBehavior.Cascade);
 
         var project = modelBuilder.Entity<Project>();
         project.ToTable("projects");

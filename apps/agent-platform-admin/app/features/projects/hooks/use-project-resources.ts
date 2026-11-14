@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Agent, AgentInstance, McpServer } from "../../../types";
+import type { Agent, AgentThread, McpServer } from "../../../types";
 
 export function useProjectResources(
   projectId: string,
@@ -9,7 +9,7 @@ export function useProjectResources(
 ) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
-  const [agentInstances, setAgentInstances] = useState<AgentInstance[]>([]);
+  const [agentThreads, setAgentThreads] = useState<AgentThread[]>([]);
 
   const refreshAgents = useCallback(async () => {
     if (!projectId) {
@@ -41,18 +41,18 @@ export function useProjectResources(
     }
   }, [projectId, reportMessage]);
 
-  const refreshAgentInstances = useCallback(async () => {
+  const refreshAgentThreads = useCallback(async () => {
     if (!projectId) {
-      setAgentInstances([]);
+      setAgentThreads([]);
       return;
     }
     try {
-      const response = await fetch(`/api/projects/${projectId}/agent-instances/`);
-      if (!response.ok) throw new Error("Conversations could not be loaded.");
-      setAgentInstances((await response.json()) as AgentInstance[]);
+      const response = await fetch(`/api/projects/${projectId}/agent-threads/`);
+      if (!response.ok) throw new Error("Threads could not be loaded.");
+      setAgentThreads((await response.json()) as AgentThread[]);
     } catch (error) {
       reportMessage(
-        error instanceof Error ? error.message : "Conversations could not be loaded.",
+        error instanceof Error ? error.message : "Threads could not be loaded.",
       );
     }
   }, [projectId, reportMessage]);
@@ -61,17 +61,17 @@ export function useProjectResources(
     const timeoutId = window.setTimeout(() => {
       void refreshAgents();
       void refreshMcpServers();
-      void refreshAgentInstances();
+      void refreshAgentThreads();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [refreshAgents, refreshAgentInstances, refreshMcpServers]);
+  }, [refreshAgents, refreshAgentThreads, refreshMcpServers]);
 
   return {
     agents,
     mcpServers,
-    agentInstances,
+    agentThreads,
     refreshAgents,
     refreshMcpServers,
-    refreshAgentInstances,
+    refreshAgentThreads,
   };
 }

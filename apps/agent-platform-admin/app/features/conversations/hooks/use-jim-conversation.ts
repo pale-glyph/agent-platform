@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { readError } from "../../../services/http";
-import type { Agent, AgentInstance, Project, TimelineEntry, TimelinePage } from "../../../types";
+import type { Agent, AgentThread, Project, ThreadEntry, ThreadPage } from "../../../types";
 
 const jimAgentId = process.env.NEXT_PUBLIC_JIM_AGENT_ID ?? "";
 
@@ -17,9 +17,9 @@ export function useJimConversation({
   reportMessage: (message: string | null) => void;
 }) {
   const [projectId, setProjectId] = useState("");
-  const [instances, setInstances] = useState<AgentInstance[]>([]);
-  const [activeInstanceId, setActiveInstanceId] = useState("");
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [threads, setThreads] = useState<AgentThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState("");
+  const [entries, setEntries] = useState<ThreadEntry[]>([]);
   const [initialPrompt, setInitialPrompt] = useState("");
   const [outgoingMessage, setOutgoingMessage] = useState("");
   const [messageDelivery, setMessageDelivery] = useState<"Queued" | "Steering">("Queued");
@@ -42,24 +42,24 @@ export function useJimConversation({
     setProjectId("");
   }, [projects]);
 
-  const refreshInstances = useCallback(async () => {
+  const refreshThreads = useCallback(async () => {
     if (!projectId || !jimAgentId) {
-      setInstances([]);
-      setActiveInstanceId("");
-      setTimeline([]);
+      setThreads([]);
+      setActiveThreadId("");
+      setEntries([]);
       return;
     }
     try {
-      const response = await fetch(`/api/projects/${projectId}/agent-instances/`);
+      const response = await fetch(`/api/projects/${projectId}/agent-threads/`);
       if (!response.ok) throw new Error("Jim’s conversations could not be loaded.");
-      const matchingInstances = ((await response.json()) as AgentInstance[]).filter(
-        (instance) => instance.agentId === jimAgentId,
+      const matchingThreads = ((await response.json()) as AgentThread[]).filter(
+        (thread) => thread.agentId === jimAgentId,
       );
-      setInstances(matchingInstances);
-      setActiveInstanceId((current) =>
-        current && matchingInstances.some((instance) => instance.id === current)
+      setThreads(matchingThreads);
+      setActiveThreadId((current) =>
+        current && matchingThreads.some((thread) => thread.id === current)
           ? current
-          : (matchingInstances[0]?.id ?? ""),
+          : (matchingThreads[0]?.id ?? ""),
       );
     } catch (error) {
       reportMessage(
@@ -68,23 +68,23 @@ export function useJimConversation({
     }
   }, [projectId, reportMessage]);
 
-  const refreshTimeline = useCallback(async (instanceId = activeInstanceId) => {
-    if (!projectId || !instanceId) {
-      setTimeline([]);
+  const refreshEntries = useCallback(async (threadId = activeThreadId) => {
+    if (!projectId || !threadId) {
+      setEntries([]);
       return;
     }
     try {
       const response = await fetch(
-        `/api/projects/${projectId}/agent-instances/${instanceId}/timeline?limit=100`,
+        `/api/projects/${projectId}/agent-threads/${threadId}/timeline?limit=100`,
       );
       if (!response.ok) throw new Error("Conversation history could not be loaded.");
-      setTimeline(((await response.json()) as TimelinePage).items);
+      setEntries(((await response.json()) as ThreadPage).items);
     } catch (error) {
       reportMessage(
         error instanceof Error ? error.message : "Conversation history could not be loaded.",
       );
     }
-  }, [activeInstanceId, projectId, reportMessage]);
+  }, [activeThreadId, projectId, reportMessage]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void resolveProject(), 0);
@@ -92,14 +92,14 @@ export function useJimConversation({
   }, [resolveProject]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void refreshInstances(), 0);
+    const timeoutId = window.setTimeout(() => void refreshThreads(), 0);
     return () => window.clearTimeout(timeoutId);
-  }, [refreshInstances]);
+  }, [refreshThreads]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => void refreshTimeline(), 0);
+    const timeoutId = window.setTimeout(() => void refreshEntries(), 0);
     return () => window.clearTimeout(timeoutId);
-  }, [refreshTimeline]);
+  }, [refreshEntries]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -107,20 +107,20 @@ export function useJimConversation({
     const refresh = (event: MessageEvent<string>) => {
       const webhook = JSON.parse(event.data) as {
         projectId: string;
-        data: { instanceId?: string };
+        data: { threadId?: string };
       };
       if (
         webhook.projectId === projectId &&
-        (!webhook.data.instanceId || webhook.data.instanceId === activeInstanceId)
+        (!webhook.data.threadId || webhook.data.threadId === activeThreadId)
       ) {
-        void refreshTimeline();
-        void refreshInstances();
+        void refreshEntries();
+        void refreshThreads();
       }
     };
     stream.addEventListener("agent.message", refresh);
     stream.addEventListener("agent.tool_call", refresh);
     return () => stream.close();
-  }, [activeInstanceId, isActive, projectId, refreshInstances, refreshTimeline]);
+  }, [activeThreadId, isActive, projectId, refreshEntries, refreshThreads]);
 
   const start = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -128,32 +128,32 @@ export function useJimConversation({
     setIsSending(true);
     reportMessage(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/agents/${jimAgentId}/instances`, {
+      const response = await fetch(`/api/projects/${projectId}/agents/${jimAgentId}/threads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initialPrompt }),
       });
       if (!response.ok) throw new Error(await readError(response));
-      const instance = (await response.json()) as AgentInstance;
-      setActiveInstanceId(instance.id);
+      const thread = (await response.json()) as AgentThread;
+      setActiveThreadId(thread.id);
       setInitialPrompt("");
-      await refreshInstances();
-      await refreshTimeline(instance.id);
+      await refreshThreads();
+      await refreshEntries(thread.id);
     } catch (error) {
       reportMessage(error instanceof Error ? error.message : "The conversation could not be started.");
     } finally {
       setIsSending(false);
     }
-  }, [initialPrompt, projectId, refreshInstances, refreshTimeline, reportMessage]);
+  }, [initialPrompt, projectId, refreshEntries, refreshThreads, reportMessage]);
 
   const send = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!projectId || !activeInstanceId || !outgoingMessage.trim()) return;
+    if (!projectId || !activeThreadId || !outgoingMessage.trim()) return;
     setIsSending(true);
     reportMessage(null);
     try {
       const response = await fetch(
-        `/api/projects/${projectId}/agent-instances/${activeInstanceId}/messages`,
+        `/api/projects/${projectId}/agent-threads/${activeThreadId}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -162,33 +162,33 @@ export function useJimConversation({
       );
       if (!response.ok) throw new Error(await readError(response));
       setOutgoingMessage("");
-      await refreshTimeline(activeInstanceId);
+      await refreshEntries(activeThreadId);
     } catch (error) {
       reportMessage(error instanceof Error ? error.message : "The message could not be sent.");
     } finally {
       setIsSending(false);
     }
-  }, [activeInstanceId, messageDelivery, outgoingMessage, projectId, refreshTimeline, reportMessage]);
+  }, [activeThreadId, messageDelivery, outgoingMessage, projectId, refreshEntries, reportMessage]);
 
-  const remove = useCallback(async (instance: AgentInstance) => {
+  const remove = useCallback(async (thread: AgentThread) => {
     if (!projectId || !window.confirm("Delete this conversation and its execution history? This cannot be undone.")) return;
     try {
-      const response = await fetch(`/api/projects/${projectId}/agent-instances/${instance.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/projects/${projectId}/agent-threads/${thread.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(await readError(response));
-      if (activeInstanceId === instance.id) {
-        setActiveInstanceId("");
-        setTimeline([]);
+      if (activeThreadId === thread.id) {
+        setActiveThreadId("");
+        setEntries([]);
       }
-      await refreshInstances();
+      await refreshThreads();
     } catch (error) {
       reportMessage(error instanceof Error ? error.message : "The conversation could not be deleted.");
     }
-  }, [activeInstanceId, projectId, refreshInstances, reportMessage]);
+  }, [activeThreadId, projectId, refreshThreads, reportMessage]);
 
   return {
-    agentId: jimAgentId, projectId, instances, activeInstanceId, timeline,
+    agentId: jimAgentId, projectId, threads, activeThreadId, entries,
     initialPrompt, outgoingMessage, messageDelivery, isSending,
-    setActiveInstanceId, setInitialPrompt, setOutgoingMessage, setMessageDelivery,
+    setActiveThreadId, setInitialPrompt, setOutgoingMessage, setMessageDelivery,
     start, send, remove,
   };
 }

@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-11-08
-- **Decision:** Establish projects as the resource boundary. Model agent definitions as immutable versions and agent instances as stateful, single-threaded conversations pinned to one version. Grant tools explicitly and publish lifecycle events to configured NATS streams.
+- **Decision:** Establish projects as the resource boundary. Model agent definitions as immutable versions and agent threads as stateful conversations pinned to one version. Grant tools explicitly and publish lifecycle events to configured NATS streams.
 
 ## Context
 
@@ -21,16 +21,16 @@ flowchart TB
     VERSION["Agent Version<br/>immutable configuration"]
     MCP["MCP Server<br/>tool integration definition"]
     CONTROL["Built-in Platform MCP Server<br/>platform-configuration tools"]
-    INSTANCE["Agent Instance<br/>stateful running of an agent"]
+    THREAD["Agent Thread<br/>stateful conversation of an agent"]
     CONVERSATION["Conversation<br/>operator and agent messages"]
     RUN["Execution Run<br/>a scheduled or active unit of work"]
 
     PROJECT --> AGENT
     PROJECT --> MCP
     AGENT --> VERSION
-    VERSION --> INSTANCE
-    INSTANCE --> CONVERSATION
-    INSTANCE --> RUN
+    VERSION --> THREAD
+    THREAD --> CONVERSATION
+    THREAD --> RUN
     MCP -.->|explicit tool grant| VERSION
     CONTROL -.->|explicit tool grant| VERSION
 ```
@@ -43,33 +43,33 @@ An agent version may only use MCP servers from its own project, or the built-in 
 | --- | --- | --- |
 | **Project** | Groups resources and establishes the authorisation and isolation boundary. | Owns agents and MCP servers. |
 | **Agent** | A stable logical identity for a class of work. | Belongs to one project; has many immutable versions. |
-| **Agent version** | An immutable snapshot of an agent's instructions, model configuration, tool grants, and event delivery configuration. | Belongs to one agent; creates many agent instances. |
+| **Agent version** | An immutable snapshot of an agent's instructions, model configuration, tool grants, and event delivery configuration. | Belongs to one agent; creates many agent threads. |
 | **MCP server** | A project-scoped definition of an MCP-compatible tool server and its connection configuration. | Belongs to one project; may be enabled for eligible agents in that project. |
 | **Built-in platform MCP server** | A platform-owned MCP server that exposes platform-configuration tools. | Is globally operated but authorises every call within the calling agent's project scope. |
 | **Tool grant** | An explicit permission for an agent version to invoke an MCP server, optionally constrained to named tools. | Connects one agent version to one MCP server in the same project. |
-| **Agent instance** | The durable, stateful identity for one running or resumable use of an agent. It holds runtime configuration, state, and exactly one conversation thread. | Belongs to one agent version; owns one conversation and many runs. |
-| **Conversation** | An ordered, durable transcript of human and agent messages. | Has a one-to-one relationship with an agent instance. |
-| **Execution run** | A concrete attempt to perform work for an agent instance. | Belongs to one agent instance; emits immutable lifecycle events. |
+| **Agent thread** | The durable, stateful identity for one running or resumable use of an agent. It holds runtime configuration and state. | Belongs to one agent version; owns one conversation and many runs. |
+| **Conversation** | An ordered, durable transcript of human and agent messages. | Has a one-to-one relationship with an agent thread. |
+| **Execution run** | A concrete attempt to perform work for an agent thread. | Belongs to one agent thread; emits immutable lifecycle events. |
 
-### Agent, version, and agent instance
+### Agent, version, and agent thread
 
 An **agent** is a stable logical identity and is safe to reuse. Its mutable metadata (such as a display name) is separate from executable configuration.
 
-An **agent version** is an immutable executable configuration. Publishing a new version creates a new record rather than changing an existing one. The version captures instructions, model configuration, permitted MCP tools, and NATS event delivery targets. An existing instance is never changed to use a later version implicitly.
+An **agent version** is an immutable executable configuration. Publishing a new version creates a new record rather than changing an existing one. The version captures instructions, model configuration, permitted MCP tools, and NATS event delivery targets. An existing thread is never changed to use a later version implicitly.
 
-An **agent instance** is created when a caller starts a stateful interaction or execution. It pins one agent version and owns exactly one conversation thread. It records runtime state such as its status, model/session references, and current checkpoint. It is the addressable target for a human's steering message.
+An **agent thread** is created when a caller starts a stateful interaction or execution. It pins one agent version and owns exactly one conversation. It records runtime state such as its status, model/session references, and current checkpoint. It is the addressable target for a human's steering message.
 
-This separation allows multiple independent instances of the same agent version to run concurrently, resume a paused interaction, and retain an audit trail without mutating the configuration used by existing or future instances.
+This separation allows multiple independent threads of the same agent version to run concurrently, resume a paused interaction, and retain an audit trail without mutating the configuration used by existing or future threads.
 
 ## Ownership and isolation rules
 
 1. Every agent and MCP server has exactly one `project_id`.
 2. Every agent version has an `agent_id`; it is immutable after publication.
-3. Every agent instance has an `agent_version_id`; its project is derived from that version and must be recorded or queryable consistently for isolation checks.
+3. Every agent thread has an `agent_version_id`; its project is derived from that version and must be recorded or queryable consistently for isolation checks.
 4. An agent version can reference only MCP servers with the same `project_id`, or the built-in platform MCP server, through explicit tool grants. No tool is available by default.
-5. An agent instance owns exactly one conversation. A conversation, steering message, run, and event can only be created for an existing agent instance.
+5. An agent thread owns exactly one conversation. A conversation, steering message, run, and event can only be created for an existing agent thread.
 6. API routes and worker messages must carry enough identifiers to validate project ownership before performing an operation.
-7. Deletion should initially be logical (archival) for agents, versions, instances, and MCP servers so audit history remains intact.
+7. Deletion should initially be logical (archival) for agents, versions, threads, and MCP servers so audit history remains intact.
 
 ## Lifecycle
 
@@ -88,11 +88,11 @@ stateDiagram-v2
     AwaitingInput --> Expired: input deadline exceeded
 ```
 
-`AgentInstance` state describes the durable interaction as a whole. A run has a separate attempt lifecycle (`Queued`, `Running`, `Succeeded`, `Failed`, and retry states). An instance can have several runs over its lifetime—for example, after new operator input or when resuming paused work.
+`AgentThread` state describes the durable interaction as a whole. A run has a separate attempt lifecycle (`Queued`, `Running`, `Succeeded`, `Failed`, and retry states). A thread can have several runs over its lifetime—for example, after new operator input or when resuming paused work.
 
 ## Messaging implications
 
-PostgreSQL remains the source of truth for project resources, agent instances, conversations, and state transitions. JetStream transports commands and events but does not replace persisted state.
+PostgreSQL remains the source of truth for project resources, agent threads, conversations, and state transitions. JetStream transports commands and events but does not replace persisted state.
 
 Each agent version declares zero or more **named event stream targets**. A target names a JetStream stream that has been provisioned for the project and the subject pattern used for events. When a relevant state change is committed, the outbox publisher emits a versioned event envelope to each configured target. Applications create durable pull consumers for those streams and poll on their own cadence, acknowledging messages only after processing them.
 
@@ -101,14 +101,14 @@ The platform must validate that a configured stream belongs to the same project 
 Example subjects (names are provisional):
 
 ```text
-agent-platform.project.{projectId}.instance.{instanceId}.run.requested
-agent-platform.project.{projectId}.instance.{instanceId}.steering.requested
+agent-platform.project.{projectId}.thread.{threadId}.run.requested
+agent-platform.project.{projectId}.thread.{threadId}.steering.requested
 agent-platform.project.{projectId}.agent.{agentId}.event.{eventType}
 ```
 
-Event envelopes should include an event identifier, schema version, project ID, agent ID, agent version ID, instance ID when applicable, event type, timestamp, and correlation/causation identifiers. Payloads must avoid secrets and use stable schema versions.
+Event envelopes should include an event identifier, schema version, project ID, agent ID, agent version ID, thread ID when applicable, event type, timestamp, and correlation/causation identifiers. Payloads must avoid secrets and use stable schema versions.
 
-Before publishing a run, steering command, or external event, the API persists the relevant state transition and outbox record in the same database transaction. Workers validate the instance's current state, pinned version, tool grants, and project ownership; they process commands idempotently and persist the outcome before acknowledging delivery.
+Before publishing a run, steering command, or external event, the API persists the relevant state transition and outbox record in the same database transaction. Workers validate the thread's current state, pinned version, tool grants, and project ownership; they process commands idempotently and persist the outcome before acknowledging delivery.
 
 ## Initial API shape
 
@@ -120,10 +120,10 @@ The eventual HTTP API should follow the hierarchy where it helps callers underst
 /projects/{projectId}/agents/{agentId}/versions
 /projects/{projectId}/mcp-servers
 /projects/{projectId}/nats-streams
-/projects/{projectId}/agents/{agentId}/instances
-/projects/{projectId}/agent-instances/{instanceId}
-/projects/{projectId}/agent-instances/{instanceId}/messages
-/projects/{projectId}/agent-instances/{instanceId}/runs
+/projects/{projectId}/agents/{agentId}/threads
+/projects/{projectId}/agent-threads/{threadId}
+/projects/{projectId}/agent-threads/{threadId}/messages
+/projects/{projectId}/agent-threads/{threadId}/runs
 ```
 
 Exact endpoint and payload design is deferred; this section documents ownership, not a committed REST contract.
@@ -135,7 +135,7 @@ Exact endpoint and payload design is deferred; this section documents ownership,
 - Resource ownership and authorisation checks have a clear project boundary.
 - Agent definitions remain reusable, while versions make configuration reproducible.
 - Operators have a stable target for conversation and steering even across multiple runs.
-- Run history and conversation history can be retained independently and joined through the instance.
+- Run history and conversation history can be retained independently and joined through the thread.
 - Applications can poll durable JetStream consumers instead of repeatedly querying the API for changes.
 - Future project-level settings—members, budgets, secrets, quotas, and audit policy—have a natural home.
 
@@ -143,7 +143,7 @@ Exact endpoint and payload design is deferred; this section documents ownership,
 
 - More entities and foreign-key checks are required than in a simple task queue.
 - Workers must account for stale or superseded steering commands.
-- Instance state and run state must be coordinated carefully without duplicating their responsibilities.
+- Thread state and run state must be coordinated carefully without duplicating their responsibilities.
 - Event target provisioning, stream retention, and event-schema compatibility need operational governance.
 
 ## Open questions

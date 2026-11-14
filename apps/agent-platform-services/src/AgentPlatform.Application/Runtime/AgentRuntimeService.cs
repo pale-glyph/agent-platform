@@ -1,6 +1,6 @@
 using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Application.Mcp;
-using AgentPlatform.Domain.Instances;
+using AgentPlatform.Domain.Threads;
 using AgentPlatform.Domain.Webhooks;
 using System.Text.Json;
 
@@ -8,7 +8,7 @@ namespace AgentPlatform.Application.Runtime;
 
 /// <summary>Runs one persisted agent conversation until the model produces a final response.</summary>
 public sealed class AgentRuntimeService(
-    IAgentInstanceRepository instances,
+    IAgentThreadRepository threads,
     IAgentRepository agents,
     ILlmConfigurationRepository llmConfigurations,
     IMcpServerRepository mcpServers,
@@ -21,13 +21,13 @@ public sealed class AgentRuntimeService(
 {
     private const int MaximumToolRounds = 8;
 
-    public async Task<bool> RunAsync(Guid projectId, Guid instanceId, CancellationToken cancellationToken)
+    public async Task<bool> RunAsync(Guid projectId, Guid threadId, CancellationToken cancellationToken)
     {
-        var instance = await instances.FindAsync(projectId, instanceId, cancellationToken);
-        if (instance is null || instance.Status != AgentInstanceStatus.Running) return false;
+        var thread = await threads.FindAsync(projectId, threadId, cancellationToken);
+        if (thread is null || thread.Status != AgentThreadStatus.Running) return false;
 
-        var agent = await agents.FindByIdAsync(projectId, instance.AgentId, cancellationToken)
-            ?? throw new InvalidOperationException("The instance's agent no longer exists.");
+        var agent = await agents.FindByIdAsync(projectId, thread.AgentId, cancellationToken)
+            ?? throw new InvalidOperationException("The thread's agent no longer exists.");
         if (agent.LlmConfigurationId is null) throw new InvalidOperationException("The agent does not have an LLM configuration.");
         var configuration = await llmConfigurations.FindAsync(agent.LlmConfigurationId.Value, cancellationToken)
             ?? throw new InvalidOperationException("The agent's LLM configuration no longer exists.");
@@ -40,15 +40,15 @@ public sealed class AgentRuntimeService(
         }
 
         var toolDefinitions = await GetGrantedToolDefinitionsAsync(projectId, grantedTools, cancellationToken);
-        var pendingMessages = await instances.ListPendingMessagesAsync(instance.Id, cancellationToken);
+        var pendingMessages = await threads.ListPendingMessagesAsync(thread.Id, cancellationToken);
         foreach (var pendingMessage in pendingMessages)
         {
             pendingMessage.MarkDelivered();
-            instance.MarkQueuedMessageDelivered(pendingMessage.Id);
+            thread.MarkQueuedMessageDelivered(pendingMessage.Id);
         }
-        if (pendingMessages.Count > 0) await instances.SaveChangesAsync(cancellationToken);
-        var messages = (await instances.ListEntriesAsync(instance.Id, null, 10_000, cancellationToken))
-            .Where(entry => entry.Type == AgentExecutionEntryType.Message && entry.MessageStatus != AgentMessageStatus.Cancelled)
+        if (pendingMessages.Count > 0) await threads.SaveChangesAsync(cancellationToken);
+        var messages = (await threads.ListEntriesAsync(thread.Id, null, 10_000, cancellationToken))
+            .Where(entry => entry.Type == AgentThreadEntryType.Message && entry.MessageStatus != AgentMessageStatus.Cancelled)
             .Select(entry => new RuntimeChatMessage(entry.Role == AgentMessageRole.User ? "user" : "assistant", entry.Content))
             .Prepend(new RuntimeChatMessage("system", agent.SystemPrompt))
             .ToList();
@@ -63,12 +63,12 @@ public sealed class AgentRuntimeService(
             {
                 var content = completion.Content;
                 if (string.IsNullOrWhiteSpace(content)) throw new InvalidOperationException("The model returned neither content nor tool calls.");
-                var response = AgentExecutionEntry.Message(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, completionAt);
-                await instances.AddEntryAsync(response, cancellationToken);
+                var response = AgentThreadEntry.Message(Guid.NewGuid(), thread.Id, thread.AllocateSequenceNumber(), AgentMessageRole.Agent, AgentMessageDelivery.Initial, AgentMessageStatus.Delivered, content, completionAt);
+                await threads.AddEntryAsync(response, cancellationToken);
                 await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentMessage, ToWebhookPayload(response), cancellationToken);
-                if ((await instances.ListPendingMessagesAsync(instance.Id, cancellationToken)).Count == 0)
-                    instance.Complete();
-                await instances.SaveChangesAsync(cancellationToken);
+                if ((await threads.ListPendingMessagesAsync(thread.Id, cancellationToken)).Count == 0)
+                    thread.Complete();
+                await threads.SaveChangesAsync(cancellationToken);
                 return true;
             }
 
@@ -80,10 +80,10 @@ public sealed class AgentRuntimeService(
                 var server = await mcpServers.FindByIdAsync(projectId, grant.ServerId, cancellationToken)
                     ?? throw new InvalidOperationException("A granted MCP server no longer exists.");
                 var result = await mcpTools.CallAsync(server, grant.ToolName, call.ArgumentsJson, cancellationToken);
-                var entry = AgentExecutionEntry.ToolCall(Guid.NewGuid(), instance.Id, instance.AllocateSequenceNumber(), call.Name, call.ArgumentsJson, result, timeProvider.GetUtcNow());
-                await instances.AddEntryAsync(entry, cancellationToken);
+                var entry = AgentThreadEntry.ToolCall(Guid.NewGuid(), thread.Id, thread.AllocateSequenceNumber(), call.Name, call.ArgumentsJson, result, timeProvider.GetUtcNow());
+                await threads.AddEntryAsync(entry, cancellationToken);
                 await webhookEvents.EnqueueAsync(projectId, WebhookEventTypes.AgentToolCall, ToWebhookPayload(entry), cancellationToken);
-                await instances.SaveChangesAsync(cancellationToken);
+                await threads.SaveChangesAsync(cancellationToken);
                 messages.Add(new RuntimeChatMessage("tool", result, call.Id));
             }
         }
@@ -91,12 +91,12 @@ public sealed class AgentRuntimeService(
         throw new InvalidOperationException($"The agent exceeded the {MaximumToolRounds} tool-call round limit.");
     }
 
-    public async Task MarkFailedAsync(Guid projectId, Guid instanceId, CancellationToken cancellationToken)
+    public async Task MarkFailedAsync(Guid projectId, Guid threadId, CancellationToken cancellationToken)
     {
-        var instance = await instances.FindAsync(projectId, instanceId, cancellationToken);
-        if (instance is null || instance.Status != AgentInstanceStatus.Running) return;
-        instance.Fail();
-        await instances.SaveChangesAsync(cancellationToken);
+        var thread = await threads.FindAsync(projectId, threadId, cancellationToken);
+        if (thread is null || thread.Status != AgentThreadStatus.Running) return;
+        thread.Fail();
+        await threads.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyList<RuntimeToolDefinition>> GetGrantedToolDefinitionsAsync(
@@ -129,10 +129,10 @@ public sealed class AgentRuntimeService(
         return definitions;
     }
 
-    private static object ToWebhookPayload(AgentExecutionEntry entry) => new
+    private static object ToWebhookPayload(AgentThreadEntry entry) => new
     {
         entry.Id,
-        entry.InstanceId,
+        entry.ThreadId,
         entry.SequenceNumber,
         entry.Type,
         entry.Role,

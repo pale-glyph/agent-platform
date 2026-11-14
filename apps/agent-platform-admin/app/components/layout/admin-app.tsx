@@ -70,9 +70,9 @@ export function AdminApp() {
             <ConversationPage
               agentId={conversation.agentId}
               projectId={conversation.projectId}
-              instances={conversation.instances}
-              activeInstanceId={conversation.activeInstanceId}
-              timeline={conversation.timeline}
+              threads={conversation.threads}
+              activeThreadId={conversation.activeThreadId}
+              entries={conversation.entries}
               initialPrompt={conversation.initialPrompt}
               outgoingMessage={conversation.outgoingMessage}
               messageDelivery={conversation.messageDelivery}
@@ -82,8 +82,8 @@ export function AdminApp() {
               onMessageDeliveryChange={conversation.setMessageDelivery}
               onStart={conversation.start}
               onSend={conversation.send}
-              onSelectInstance={conversation.setActiveInstanceId}
-              onDeleteInstance={(instance) => void conversation.remove(instance)}
+              onSelectThread={conversation.setActiveThreadId}
+              onDeleteThread={(thread) => void conversation.remove(thread)}
             />
           )}
           {workspace.page === "llm" && (
