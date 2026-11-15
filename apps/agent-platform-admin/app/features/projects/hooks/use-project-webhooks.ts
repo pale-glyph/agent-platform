@@ -20,6 +20,7 @@ export function useProjectWebhooks(
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [deletingDeliveryId, setDeletingDeliveryId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
@@ -158,9 +159,29 @@ export function useProjectWebhooks(
     }
   }, [isRetrying, metrics.failed, projectId, projectName, refresh, reportMessage]);
 
+  const deleteFailedDelivery = useCallback(async (delivery: WebhookDelivery) => {
+    if (
+      !projectId ||
+      delivery.status !== "Failed" ||
+      !window.confirm(`Remove the failed ${delivery.eventType} delivery from the queue? Its audit record will be retained.`)
+    ) return;
+
+    setDeletingDeliveryId(delivery.id);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/webhooks/deliveries/${delivery.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await readError(response));
+      reportMessage("Failed webhook delivery removed from the queue.");
+      await refresh();
+    } catch (error) {
+      reportMessage(error instanceof Error ? error.message : "The failed webhook delivery could not be removed.");
+    } finally {
+      setDeletingDeliveryId(null);
+    }
+  }, [projectId, refresh, reportMessage]);
+
   return {
-    webhooks, metrics, deliveries, editing, isFormOpen, isSaving, isRetrying,
+    webhooks, metrics, deliveries, editing, isFormOpen, isSaving, isRetrying, deletingDeliveryId,
     name, url, secret, events, setName, setUrl, setSecret, setEvents,
-    openForm, closeForm: () => setIsFormOpen(false), save, remove, toggle, refresh, retryFailed,
+    openForm, closeForm: () => setIsFormOpen(false), save, remove, toggle, refresh, retryFailed, deleteFailedDelivery,
   };
 }

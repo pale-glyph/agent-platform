@@ -201,6 +201,9 @@ Manage registrations and recover failed deliveries with:
 | Read delivery metrics | `GET /api/projects/{projectId}/webhooks/metrics` |
 | List pending/failed deliveries | `GET /api/projects/{projectId}/webhooks/deliveries` |
 | Retry failed deliveries | `POST /api/projects/{projectId}/webhooks/deliveries/retry-failed` |
+| Remove a failed delivery from the active queue | `DELETE /api/projects/{projectId}/webhooks/deliveries/{deliveryId}` |
+
+Removing a failed delivery transitions it to `Cancelled`; it stops appearing in the pending/failed queue while its audit record remains available to platform operators. The delete operation returns `409 Conflict` for a delivery that is not in the `Failed` state.
 
 ## Consumer acceptance checklist
 
