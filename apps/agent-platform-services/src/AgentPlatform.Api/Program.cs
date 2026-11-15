@@ -3,8 +3,6 @@ using AgentPlatform.Application.Llm;
 using AgentPlatform.Application.Projects;
 using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Webhooks;
-using AgentPlatform.Application.Threads;
-using AgentPlatform.Application.Runtime;
 using AgentPlatform.Application.Metrics;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
@@ -23,8 +21,6 @@ builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
-builder.Services.AddScoped<AgentThreadService>();
-builder.Services.AddScoped<AgentRuntimeService>();
 builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -162,49 +158,6 @@ agents.MapGet("/{agentId:guid}/usage", async (Guid projectId, Guid agentId, Date
     return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
 });
 
-agents.MapPost("/{agentId:guid}/threads", async (Guid projectId, Guid agentId, TriggerAgentThreadRequest request, AgentThreadService service, CancellationToken ct) =>
-{
-    try
-    {
-        var thread = await service.TriggerAsync(projectId, agentId, request.InitialPrompt ?? string.Empty, ct);
-        return thread is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agent-threads/{thread.Id}", thread);
-    }
-    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["initialPrompt"] = [exception.Message] }); }
-});
-
-var agentThreads = projects.MapGroup("/{projectId:guid}/agent-threads");
-agentThreads.MapGet("/", async (Guid projectId, AgentThreadService service, CancellationToken ct) => Results.Ok(await service.ListAsync(projectId, ct)));
-agentThreads.MapGet("/{threadId:guid}/timeline", async (Guid projectId, Guid threadId, long? afterSequence, int? limit, AgentThreadService service, CancellationToken ct) =>
-{
-    try
-    {
-        var page = await service.ListEntriesAsync(projectId, threadId, afterSequence, limit ?? 50, ct);
-        return page is null ? Results.NotFound() : Results.Ok(page);
-    }
-    catch (ArgumentOutOfRangeException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["pagination"] = [exception.Message] }); }
-});
-agentThreads.MapDelete("/{threadId:guid}", async (Guid projectId, Guid threadId, AgentThreadService service, CancellationToken ct) =>
-    await service.DeleteAsync(projectId, threadId, ct) ? Results.NoContent() : Results.NotFound());
-agentThreads.MapPost("/{threadId:guid}/messages", async (Guid projectId, Guid threadId, SubmitAgentMessageRequest request, AgentThreadService service, CancellationToken ct) =>
-{
-    try
-    {
-        var message = await service.SubmitMessageAsync(projectId, threadId, request.Content ?? string.Empty, request.Delivery, ct);
-        return message is null ? Results.NotFound() : Results.Accepted($"/api/projects/{projectId}/agent-threads/{threadId}/timeline", message);
-    }
-    catch (InvalidOperationException exception) { return Results.Conflict(new { title = exception.Message }); }
-    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["message"] = [exception.Message] }); }
-});
-agentThreads.MapPost("/{threadId:guid}/tool-calls", async (Guid projectId, Guid threadId, RecordToolCallRequest request, AgentThreadService service, CancellationToken ct) =>
-{
-    try
-    {
-        var toolCall = await service.RecordToolCallAsync(projectId, threadId, request.ToolName ?? string.Empty, request.Arguments ?? string.Empty, request.Result, ct);
-        return toolCall is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agent-threads/{threadId}/timeline", toolCall);
-    }
-    catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["toolCall"] = [exception.Message] }); }
-});
-
 var mcpServers = projects.MapGroup("/{projectId:guid}/mcp-servers");
 mcpServers.MapGet("/", async (Guid projectId, McpServerService service, CancellationToken ct) =>
 {
@@ -294,9 +247,6 @@ public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
 public sealed record WebhookRequest(string? Name, string? EndpointUrl, string? Secret, string[]? Events, bool? Enabled);
-public sealed record TriggerAgentThreadRequest(string? InitialPrompt);
-public sealed record SubmitAgentMessageRequest(string? Content, AgentPlatform.Domain.Threads.AgentMessageDelivery Delivery);
-public sealed record RecordToolCallRequest(string? ToolName, string? Arguments, string? Result);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);

@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentPlatform.Infrastructur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentPlatform.Api", "apps\agent-platform-services\src\AgentPlatform.Api\AgentPlatform.Api.csproj", "{D6D2F9E7-05EA-4740-95DE-889E543CA14D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentPlatform.AgentApi", "apps\agent-platform-services\src\AgentPlatform.AgentApi\AgentPlatform.AgentApi.csproj", "{EC773972-5B0D-459C-BE8F-5110FC4B1AF7}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentPlatform.Worker", "apps\agent-platform-services\src\AgentPlatform.Worker\AgentPlatform.Worker.csproj", "{F5AB0E2F-1C33-424F-B14B-10BB78BA742A}"
 EndProject
 Global
@@ -34,6 +36,10 @@ Global
 		{D6D2F9E7-05EA-4740-95DE-889E543CA14D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6D2F9E7-05EA-4740-95DE-889E543CA14D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6D2F9E7-05EA-4740-95DE-889E543CA14D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC773972-5B0D-459C-BE8F-5110FC4B1AF7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC773972-5B0D-459C-BE8F-5110FC4B1AF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC773972-5B0D-459C-BE8F-5110FC4B1AF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC773972-5B0D-459C-BE8F-5110FC4B1AF7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F5AB0E2F-1C33-424F-B14B-10BB78BA742A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F5AB0E2F-1C33-424F-B14B-10BB78BA742A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F5AB0E2F-1C33-424F-B14B-10BB78BA742A}.Release|Any CPU.ActiveCfg = Release|Any CPU

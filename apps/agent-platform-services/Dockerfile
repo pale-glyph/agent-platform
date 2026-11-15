@@ -6,6 +6,9 @@ COPY . .
 FROM build AS publish-api
 RUN dotnet publish apps/agent-platform-services/src/AgentPlatform.Api/AgentPlatform.Api.csproj --configuration Release --output /publish/api
 
+FROM build AS publish-agent-api
+RUN dotnet publish apps/agent-platform-services/src/AgentPlatform.AgentApi/AgentPlatform.AgentApi.csproj --configuration Release --output /publish/agent-api
+
 FROM build AS publish-worker
 RUN dotnet publish apps/agent-platform-services/src/AgentPlatform.Worker/AgentPlatform.Worker.csproj --configuration Release --output /publish/worker
 
@@ -16,6 +19,11 @@ FROM runtime AS api
 COPY --from=publish-api /publish/api .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "AgentPlatform.Api.dll"]
+
+FROM runtime AS agent-api
+COPY --from=publish-agent-api /publish/agent-api .
+EXPOSE 8081
+ENTRYPOINT ["dotnet", "AgentPlatform.AgentApi.dll"]
 
 FROM runtime AS worker
 COPY --from=publish-worker /publish/worker .
