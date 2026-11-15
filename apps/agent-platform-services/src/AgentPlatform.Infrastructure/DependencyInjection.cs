@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountRepository, EfAccountRepository>();
         services.AddScoped<IProjectRepository, EfProjectRepository>();
         services.AddScoped<IAgentRepository, EfAgentRepository>();
+        services.AddScoped<IAgentApiKeyRepository, EfAgentApiKeyRepository>();
         services.AddScoped<IAgentThreadRepository, EfAgentThreadRepository>();
         services.AddScoped<ILlmConfigurationRepository, EfLlmConfigurationRepository>();
         services.AddScoped<IMcpServerRepository, EfMcpServerRepository>();

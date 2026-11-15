@@ -21,6 +21,7 @@ var connectionString = builder.Configuration.GetConnectionString("Platform")
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<AgentApiKeyService>();
 builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
@@ -184,6 +185,26 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 
 agents.MapDelete("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, agentId, cancellationToken) ? Results.NoContent() : Results.NotFound());
+var agentApiKeys = agents.MapGroup("/{agentId:guid}/api-keys");
+agentApiKeys.MapGet("/", async (Guid projectId, Guid agentId, AgentApiKeyService service, CancellationToken ct) =>
+{
+    var keys = await service.ListAsync(projectId, agentId, ct);
+    return keys is null ? Results.NotFound() : Results.Ok(keys);
+});
+agentApiKeys.MapPost("/", async (Guid projectId, Guid agentId, AgentApiKeyRequest request, AgentApiKeyService service, CancellationToken ct) =>
+{
+    try
+    {
+        var key = await service.CreateAsync(projectId, agentId, request.Name ?? string.Empty, ct);
+        return key is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agents/{agentId}/api-keys/{key.Id}", key);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = [exception.Message] });
+    }
+});
+agentApiKeys.MapDelete("/{keyId:guid}", async (Guid projectId, Guid agentId, Guid keyId, AgentApiKeyService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, agentId, keyId, ct) ? Results.NoContent() : Results.NotFound());
 agents.MapGet("/{agentId:guid}/usage", async (Guid projectId, Guid agentId, DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
 {
     var metrics = await service.ListAgentAsync(projectId, agentId, from, to, ct);
@@ -286,6 +307,7 @@ app.Run();
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt, Guid? LlmConfigurationId, McpToolGrantRequest[]? McpToolGrants);
+public sealed record AgentApiKeyRequest(string? Name);
 public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);

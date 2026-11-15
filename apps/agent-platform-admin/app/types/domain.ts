@@ -13,6 +13,9 @@ export type Agent = {
   createdAt: string;
 };
 
+export type AgentApiKey = { id: string; name: string; keyPrefix: string; createdAt: string };
+export type CreatedAgentApiKey = AgentApiKey & { secret: string };
+
 export type LlmConfiguration = {
   id: string;
   name: string;

@@ -44,6 +44,9 @@ services:
     ports:
       - "${AGENT_API_PORT:-8081}:8081"
     restart: unless-stopped
+    networks:
+    - default
+    - mcp
 
   worker:
     build:

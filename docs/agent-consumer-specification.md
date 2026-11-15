@@ -8,7 +8,7 @@ This specification is for coding agents and applications that consume Agent Plat
 - IDs are UUIDs. Timestamps are ISO 8601 UTC timestamps.
 - Request and response JSON uses camelCase. Enum values are strings, for example `"Queued"`.
 - A validation failure is returned as HTTP `400` with problem details. A missing project, agent, or thread returns `404`.
-- The current API has no application-level authentication. Deploy it behind an authenticated, authorized gateway before exposing it outside a trusted network.
+- Authenticate every request with an agent API key: `Authorization: Bearer <key>`. Create and revoke keys from the selected agent's **API keys** control in the administration UI. A key is scoped to one agent: it can only create, list, read, modify, or delete that agent's threads. Requests for another project's or agent's resources return `404`.
 
 Create project and agent configuration through the administration UI or the project/agent endpoints before starting a chat. An agent must have an LLM configuration before it can execute.
 

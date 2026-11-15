@@ -109,7 +109,7 @@ Successful LLM completions are retained as 15-minute usage buckets. Each complet
 - `GET /api/projects/{projectId}/agents/{agentId}/usage`
 - `GET /api/llm-configurations/{id}/usage`
 
-The application-facing thread API, exposed locally at `http://localhost:8081`, provides:
+The application-facing thread API, exposed locally at `http://localhost:8081`, requires an agent API key in `Authorization: Bearer <key>`. Keys are created, displayed once, and revoked from the selected agent's **API keys** control in the administration UI; each key is restricted to that agent's own threads. It provides:
 
 - `POST /api/projects/{projectId}/agents/{agentId}/threads` with `{ "initialPrompt": "..." }`
 - `GET /api/projects/{projectId}/agent-threads/{threadId}`

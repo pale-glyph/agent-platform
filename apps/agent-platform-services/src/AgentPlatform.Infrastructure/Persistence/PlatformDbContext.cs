@@ -14,6 +14,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 {
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
+    public DbSet<AgentApiKey> AgentApiKeys => Set<AgentApiKey>();
     public DbSet<AgentMcpToolGrant> AgentMcpToolGrants => Set<AgentMcpToolGrant>();
     public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
     public DbSet<McpServer> McpServers => Set<McpServer>();
@@ -101,6 +102,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         agent.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
         agent.HasOne<Project>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
         agent.HasOne<LlmConfiguration>().WithMany().HasForeignKey(item => item.LlmConfigurationId).OnDelete(DeleteBehavior.SetNull);
+
+        var agentApiKey = modelBuilder.Entity<AgentApiKey>();
+        agentApiKey.ToTable("agent_api_keys");
+        agentApiKey.HasKey(item => item.Id);
+        agentApiKey.Property(item => item.Id).HasColumnName("id");
+        agentApiKey.Property(item => item.AgentId).HasColumnName("agent_id");
+        agentApiKey.Property(item => item.Name).HasColumnName("name").HasMaxLength(AgentApiKey.MaximumNameLength).IsRequired();
+        agentApiKey.Property(item => item.KeyHash).HasColumnName("key_hash").HasMaxLength(AgentApiKey.HashLength).IsRequired();
+        agentApiKey.Property(item => item.KeyPrefix).HasColumnName("key_prefix").HasMaxLength(AgentApiKey.PrefixLength).IsRequired();
+        agentApiKey.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        agentApiKey.HasIndex(item => item.KeyHash).IsUnique();
+        agentApiKey.HasIndex(item => new { item.AgentId, item.Name }).IsUnique();
+        agentApiKey.HasOne<AgentDefinition>().WithMany().HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
 
         var grant = modelBuilder.Entity<AgentMcpToolGrant>();
         grant.ToTable("agent_mcp_tool_grants");
