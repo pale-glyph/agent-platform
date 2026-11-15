@@ -15,8 +15,11 @@ services:
       nats:
         condition: service_healthy
     networks:
-      - default
-      - mcp
+      default:
+        aliases:
+          # Existing built-in MCP configurations use this internal hostname.
+          - api
+      mcp: {}
     ports:
       - "${FRONTEND_API_PORT:-8080}:8080"
     restart: unless-stopped
