@@ -238,6 +238,17 @@ webhooks.MapPost("/deliveries/retry-failed", async (Guid projectId, WebhookServi
     var retried = await service.RetryFailedAsync(projectId, ct);
     return retried is null ? Results.NotFound() : Results.Ok(new { retried });
 });
+webhooks.MapDelete("/deliveries/{deliveryId:guid}", async (Guid projectId, Guid deliveryId, WebhookService service, CancellationToken ct) =>
+{
+    var result = await service.DeleteFailedDeliveryAsync(projectId, deliveryId, ct);
+    return result switch
+    {
+        DeleteWebhookDeliveryResult.Deleted => Results.NoContent(),
+        DeleteWebhookDeliveryResult.NotFound => Results.NotFound(),
+        DeleteWebhookDeliveryResult.NotFailed => Results.Conflict(new { title = "Only failed webhook deliveries can be deleted." }),
+        _ => throw new InvalidOperationException("Unexpected webhook delivery deletion result."),
+    };
+});
 
 app.Run();
 

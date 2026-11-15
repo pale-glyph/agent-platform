@@ -5,7 +5,7 @@ import { useProjectWebhooks } from "../hooks/use-project-webhooks";
 type Props = { projectId: string; projectName?: string; onMessage: (message: string) => void };
 
 export function WebhooksTab(props: Props) {
-  const { webhooks, deliveries: webhookDeliveries, metrics: webhookMetrics, editing: editingWebhook, isFormOpen: isWebhookFormOpen, isSaving, isRetrying: isRetryingWebhooks, name: webhookName, url: webhookUrl, secret: webhookSecret, events: webhookEvents, setName: setWebhookName, setUrl: setWebhookUrl, setSecret: setWebhookSecret, setEvents: setWebhookEvents, openForm: openWebhookForm, save: saveWebhook, closeForm: onCancel, toggle: toggleWebhook, remove: deleteWebhook, refresh: loadWebhooks, retryFailed: retryFailedWebhooks } = useProjectWebhooks(props.projectId, props.projectName, props.onMessage);
+  const { webhooks, deliveries: webhookDeliveries, metrics: webhookMetrics, editing: editingWebhook, isFormOpen: isWebhookFormOpen, isSaving, isRetrying: isRetryingWebhooks, deletingDeliveryId, name: webhookName, url: webhookUrl, secret: webhookSecret, events: webhookEvents, setName: setWebhookName, setUrl: setWebhookUrl, setSecret: setWebhookSecret, setEvents: setWebhookEvents, openForm: openWebhookForm, save: saveWebhook, closeForm: onCancel, toggle: toggleWebhook, remove: deleteWebhook, refresh: loadWebhooks, retryFailed: retryFailedWebhooks, deleteFailedDelivery } = useProjectWebhooks(props.projectId, props.projectName, props.onMessage);
   return (
                   <section className="project-panel tab-panel">
                     <div className="panel-heading">
@@ -242,6 +242,7 @@ export function WebhooksTab(props: Props) {
                                 <th scope="col">Attempts</th>
                                 <th scope="col">Last result</th>
                                 <th scope="col">Queued</th>
+                                <th scope="col"><span className="sr-only">Actions</span></th>
                               </tr>
                             </thead>
                             <tbody>
@@ -273,6 +274,18 @@ export function WebhooksTab(props: Props) {
                                       dateStyle: "medium",
                                       timeStyle: "short",
                                     }).format(new Date(delivery.createdAt))}
+                                  </td>
+                                  <td>
+                                    {delivery.status === "Failed" && (
+                                      <button
+                                        className="text-button"
+                                        type="button"
+                                        disabled={deletingDeliveryId === delivery.id}
+                                        onClick={() => void deleteFailedDelivery(delivery)}
+                                      >
+                                        {deletingDeliveryId === delivery.id ? "Removing…" : "Remove"}
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               ))}

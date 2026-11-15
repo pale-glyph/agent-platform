@@ -3,6 +3,13 @@ using AgentPlatform.Domain.Webhooks;
 
 namespace AgentPlatform.Application.Webhooks;
 
+public enum DeleteWebhookDeliveryResult
+{
+    Deleted,
+    NotFound,
+    NotFailed,
+}
+
 public sealed class WebhookService(IProjectRepository projects, IWebhookRepository webhooks, TimeProvider clock)
 {
     public async Task<IReadOnlyList<WebhookSummary>?> ListAsync(Guid projectId, CancellationToken ct)
@@ -58,6 +65,18 @@ public sealed class WebhookService(IProjectRepository projects, IWebhookReposito
     {
         if (await projects.FindByIdAsync(projectId, ct) is null) return null;
         return await webhooks.RetryFailedAsync(projectId, clock.GetUtcNow(), ct);
+    }
+
+    public async Task<DeleteWebhookDeliveryResult> DeleteFailedDeliveryAsync(Guid projectId, Guid deliveryId, CancellationToken ct)
+    {
+        if (await projects.FindByIdAsync(projectId, ct) is null) return DeleteWebhookDeliveryResult.NotFound;
+        var delivery = await webhooks.FindDeliveryAsync(projectId, deliveryId, ct);
+        if (delivery is null) return DeleteWebhookDeliveryResult.NotFound;
+        if (delivery.Status != WebhookDeliveryStatus.Failed) return DeleteWebhookDeliveryResult.NotFailed;
+
+        delivery.Cancel(clock.GetUtcNow());
+        await webhooks.SaveChangesAsync(ct);
+        return DeleteWebhookDeliveryResult.Deleted;
     }
 
     private static WebhookSummary Map(WebhookEndpoint item) => new(item.Id, item.ProjectId, item.Name, item.EndpointUrl, item.Events, !string.IsNullOrEmpty(item.Secret), item.IsEnabled, item.CreatedAt);

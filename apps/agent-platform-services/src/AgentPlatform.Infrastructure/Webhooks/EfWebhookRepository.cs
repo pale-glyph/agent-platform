@@ -17,6 +17,9 @@ public sealed class EfWebhookRepository(PlatformDbContext db) : IWebhookReposito
     public Task AddAsync(WebhookEndpoint webhook, CancellationToken ct) => db.WebhookEndpoints.AddAsync(webhook, ct).AsTask();
     public void Remove(WebhookEndpoint webhook) => db.WebhookEndpoints.Remove(webhook);
 
+    public Task<WebhookDelivery?> FindDeliveryAsync(Guid projectId, Guid deliveryId, CancellationToken ct) =>
+        db.WebhookDeliveries.SingleOrDefaultAsync(item => item.ProjectId == projectId && item.Id == deliveryId, ct);
+
     public async Task<IReadOnlyList<WebhookDeliverySummary>> ListDeliveriesAsync(Guid projectId, int limit, CancellationToken ct) =>
         await db.WebhookDeliveries.AsNoTracking().Where(item => item.ProjectId == projectId && (item.Status == WebhookDeliveryStatus.Pending || item.Status == WebhookDeliveryStatus.Failed))
             .OrderByDescending(item => item.CreatedAt).Take(limit)

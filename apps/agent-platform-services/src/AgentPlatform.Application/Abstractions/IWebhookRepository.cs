@@ -9,6 +9,7 @@ public interface IWebhookRepository
     Task<WebhookEndpoint?> FindAsync(Guid projectId, Guid webhookId, CancellationToken cancellationToken);
     Task AddAsync(WebhookEndpoint webhook, CancellationToken cancellationToken);
     void Remove(WebhookEndpoint webhook);
+    Task<WebhookDelivery?> FindDeliveryAsync(Guid projectId, Guid deliveryId, CancellationToken cancellationToken);
     Task<IReadOnlyList<WebhookDeliverySummary>> ListDeliveriesAsync(Guid projectId, int limit, CancellationToken cancellationToken);
     Task<WebhookMetricsSummary> GetMetricsAsync(Guid projectId, CancellationToken cancellationToken);
     Task<int> RetryFailedAsync(Guid projectId, DateTimeOffset now, CancellationToken cancellationToken);

@@ -17,6 +17,8 @@ npm run dev
 
 The development server runs at `http://localhost:3000`. Configure the control-plane API base URL through `API_INTERNAL_URL` and the thread-service API base URL through `THREAD_API_INTERNAL_URL`. The administration header links to same-origin ReDoc documentation at `/redoc` and `/agent-redoc`; the frontend proxies each page and its OpenAPI document to the corresponding API service.
 
+Failed webhook deliveries can be removed from the delivery queue in the project Webhooks tab. This changes the delivery to `Cancelled` so it is no longer delivered or listed as failed, while preserving its audit record.
+
 ## Live agent updates
 
 The admin receives live execution updates over Server-Sent Events. Create a project webhook with endpoint `http://admin:3000/api/agent-events`, subscribe it to `agent.message` and `agent.tool_call`, and set its signing secret to the same value as `AGENT_EVENTS_WEBHOOK_SECRET` on the admin container. The receiver verifies the platform HMAC signature before forwarding the event to connected browsers.
