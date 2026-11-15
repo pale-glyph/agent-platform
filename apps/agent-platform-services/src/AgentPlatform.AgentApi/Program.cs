@@ -18,7 +18,41 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     document.Info.Description = """
         Use this API to create and operate durable conversations with a configured platform agent.
 
-        Start a thread with an initial user prompt, then poll its timeline in sequence-number order until the agent has produced the outcome your application needs. Use a `Queued` message to deliver a follow-up after the current run and a `Steering` message to request cooperative cancellation of an active run.
+        ## Receive results through webhooks
+
+        Webhooks, rather than timeline polling, are the primary notification mechanism. Before an application starts threads, a human administrator must configure a webhook for its project in the administration UI: **Projects → select project → Webhooks → New webhook**. Set the application's HTTPS receiver URL and signing secret, then subscribe to `agent.message`. Subscribe to `agent.tool_call` only when the application needs tool activity as well.
+
+        The platform sends a JSON `POST` with these headers:
+
+        ```text
+        X-Agent-Platform-Event-Id: <UUID>
+        X-Agent-Platform-Event-Type: agent.message | agent.tool_call
+        X-Agent-Platform-Signature: sha256=<lowercase hexadecimal HMAC-SHA-256>
+        ```
+
+        Verify the signature against the exact UTF-8 request body with the webhook signing secret before parsing the payload, using a constant-time comparison. The payload has `eventId`, `schemaVersion` (`"1.0"`), `projectId`, `eventType`, `occurredAt`, and `data`. For `agent.message`, `data` is a timeline entry; an agent response has `type: "Message"`, `role: "Agent"`, and `messageStatus: "Delivered"`.
+
+        ```json
+        {
+          "eventId": "2f0d9d44-4a53-47e2-bf36-27f49dd8e31a",
+          "schemaVersion": "1.0",
+          "projectId": "<project UUID>",
+          "eventType": "agent.message",
+          "occurredAt": "2026-11-15T16:00:00Z",
+          "data": {
+            "threadId": "<thread UUID>",
+            "sequenceNumber": 2,
+            "type": "Message",
+            "role": "Agent",
+            "messageStatus": "Delivered",
+            "content": "The requested work is complete."
+          }
+        }
+        ```
+
+        Deliveries are at-least-once. Deduplicate by `eventId`, preserve per-thread ordering with `threadId` plus `sequenceNumber`, and return a `2xx` response only after durably recording the event. `408`, `429`, connection failures, timeouts, and `5xx` responses are retried; other non-`2xx` responses are not automatically retried. Use the timeline endpoint only to reconcile a missed or out-of-order delivery.
+
+        Start a thread with an initial user prompt. Use a `Queued` message to deliver a follow-up after the current run and a `Steering` message to request cooperative cancellation of an active run.
 
         All identifiers in the paths are UUIDs. Thread and timeline reads are scoped to the supplied project ID; a resource in a different project returns `404`.
 
@@ -79,8 +113,8 @@ agentThreads.MapGet("/{threadId:guid}/timeline", async (Guid projectId, Guid thr
     }
 })
     .WithName("ListAgentThreadTimeline")
-    .WithSummary("Read a thread's ordered timeline")
-    .WithDescription("Poll this endpoint after creating a thread or submitting a message. Set `afterSequence` to the previous response's `nextCursor` to read only later entries. `limit` defaults to 50 and must be from 1 through 100. A null `nextCursor` means the returned page reached the current end of the timeline.")
+    .WithSummary("Reconcile a thread's ordered timeline")
+    .WithDescription("Webhooks are the primary notification mechanism. Use this endpoint only to reconcile a missed or out-of-order webhook delivery. Set `afterSequence` to the highest durably processed sequence number. `limit` defaults to 50 and must be from 1 through 100. A null `nextCursor` means the returned page reached the current end of the timeline.")
     .Produces<AgentThreadPage>(StatusCodes.Status200OK)
     .ProducesValidationProblem(StatusCodes.Status400BadRequest)
     .Produces(StatusCodes.Status404NotFound);
@@ -109,7 +143,7 @@ agentThreads.MapPost("/{threadId:guid}/messages", async (Guid projectId, Guid th
 })
     .WithName("SubmitAgentThreadMessage")
     .WithSummary("Queue or steer a thread message")
-    .WithDescription("Submit a non-empty `content` value of at most 100,000 characters. Set `delivery` to `Queued` for the next execution turn; at most one queued message may be pending, otherwise the API returns `409`. Set it to `Steering` to add a message immediately and request cooperative cancellation of a running execution. `Initial` is reserved for thread creation and returns `400` here.\n\nExample request:\n```json\n{\n  \"content\": \"Use the existing project configuration and create the release plan.\",\n  \"delivery\": \"Queued\"\n}\n```")
+    .WithDescription("Submit a non-empty `content` value of at most 100,000 characters. Set `delivery` to `Queued` for the next execution turn; at most one queued message may be pending, otherwise the API returns `409`. Set it to `Steering` to add a message immediately and request cooperative cancellation of a running execution. `Initial` is reserved for thread creation and returns `400` here. A `202` means the message was stored; receive the later agent outcome through the configured `agent.message` webhook.\n\nExample request:\n```json\n{\n  \"content\": \"Use the existing project configuration and create the release plan.\",\n  \"delivery\": \"Queued\"\n}\n```")
     .Accepts<SubmitAgentMessageRequest>("application/json")
     .Produces<SubmittedThreadMessage>(StatusCodes.Status202Accepted)
     .ProducesValidationProblem(StatusCodes.Status400BadRequest)
@@ -130,7 +164,7 @@ app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", asyn
 })
     .WithName("CreateAgentThread")
     .WithSummary("Create and start an agent thread")
-    .WithDescription("Creates a durable thread for the specified agent, records `initialPrompt` as its first user message, and starts execution. Supply a non-empty prompt of at most 100,000 characters. Poll the returned thread's timeline to receive messages and tool activity.\n\nExample request:\n```json\n{\n  \"initialPrompt\": \"Review the deployment request and tell me what information is missing.\"\n}\n```")
+    .WithDescription("Creates a durable thread for the specified agent, records `initialPrompt` as its first user message, and starts execution. Supply a non-empty prompt of at most 100,000 characters. A `201` confirms acceptance, not a completed agent response; receive messages and optional tool activity through the configured project webhook.\n\nExample request:\n```json\n{\n  \"initialPrompt\": \"Review the deployment request and tell me what information is missing.\"\n}\n```")
     .Accepts<TriggerAgentThreadRequest>("application/json")
     .Produces<AgentThreadSummary>(StatusCodes.Status201Created)
     .ProducesValidationProblem(StatusCodes.Status400BadRequest)
