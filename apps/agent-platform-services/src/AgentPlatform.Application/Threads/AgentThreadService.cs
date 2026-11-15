@@ -14,6 +14,12 @@ public sealed class AgentThreadService(IAgentRepository agents, IAgentThreadRepo
     public async Task<IReadOnlyList<AgentThreadSummary>> ListAsync(Guid projectId, CancellationToken cancellationToken) =>
         (await threads.ListByProjectAsync(projectId, cancellationToken)).Select(ToSummary).ToArray();
 
+    public async Task<AgentThreadSummary?> FindAsync(Guid projectId, Guid threadId, CancellationToken cancellationToken)
+    {
+        var thread = await threads.FindAsync(projectId, threadId, cancellationToken);
+        return thread is null ? null : ToSummary(thread);
+    }
+
     public async Task<AgentThreadSummary?> TriggerAsync(Guid projectId, Guid agentId, string initialPrompt, CancellationToken cancellationToken)
     {
         if (await agents.FindByIdAsync(projectId, agentId, cancellationToken) is null) return null;

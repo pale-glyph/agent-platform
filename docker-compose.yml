@@ -1,5 +1,5 @@
 services:
-  api:
+  frontend-api:
     build:
       context: .
       dockerfile: apps/agent-platform-services/Dockerfile
@@ -17,6 +17,27 @@ services:
     networks:
       - default
       - mcp
+    ports:
+      - "${FRONTEND_API_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  agent-api:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: agent-api
+    environment:
+      ASPNETCORE_URLS: http://+:8081
+      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      Nats__Url: ${NATS_URL}
+      Nats__StreamName: ${NATS_STREAM_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "${AGENT_API_PORT:-8081}:8081"
     restart: unless-stopped
 
   worker:
@@ -45,13 +66,15 @@ services:
       args:
         JIM_AGENT_ID: ${JIM_AGENT_ID:-}
     environment:
-      API_INTERNAL_URL: http://api:8080
+      API_INTERNAL_URL: http://frontend-api:8080
+      THREAD_API_INTERNAL_URL: http://agent-api:8081
       NEXT_PUBLIC_JIM_AGENT_ID: ${JIM_AGENT_ID:-}
       AGENT_EVENTS_WEBHOOK_SECRET: ${AGENT_EVENTS_WEBHOOK_SECRET:-}
     ports:
       - "${ADMIN_PORT}:3000"
     depends_on:
-      - api
+      - frontend-api
+      - agent-api
     restart: unless-stopped
 
   postgres:

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
+const apiUrl = process.env.THREAD_API_INTERNAL_URL ?? "http://localhost:8081";
 
 export async function DELETE(_: NextRequest, context: { params: Promise<{ projectId: string; threadId: string }> }) {
   try {

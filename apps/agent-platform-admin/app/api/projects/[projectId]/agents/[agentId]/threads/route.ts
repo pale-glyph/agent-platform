@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
+const apiUrl = process.env.THREAD_API_INTERNAL_URL ?? "http://localhost:8081";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ projectId: string; agentId: string }> }) {
   try {

@@ -100,7 +100,7 @@ stateDiagram-v2
 
 ## Repository status
 
-This repository is at the foundation stage. It includes an initial .NET solution, API and worker hosts, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. The built-in platform MCP endpoint can list projects, retrieve a project with its agents, MCP servers, and webhooks, and create, update, or delete those resources through the control-plane services. An agent may select one platform LLM configuration and receives MCP access only through explicit, persisted per-tool grants to servers in its project. The UI marks an agent without an LLM as misconfigured. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Agent threads can now be triggered with an initial prompt; their durable, cursor-paginated timeline records messages and tool calls. Operators may send a queued message (one pending message at a time) or a steering message, which records a cooperative cancellation request for an active execution. Every stored message and tool call creates an `agent.message` or `agent.tool_call` webhook delivery in the same database transaction. Worker-side model invocation and MCP tool execution, plus authentication, remain the next implementation stages.
+This repository is at the foundation stage. It includes an initial .NET solution, separate frontend and application-facing thread API hosts, a worker host, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. The built-in platform MCP endpoint can list projects, retrieve a project with its agents, MCP servers, and webhooks, and create, update, or delete those resources through the control-plane services. An agent may select one platform LLM configuration and receives MCP access only through explicit, persisted per-tool grants to servers in its project. The UI marks an agent without an LLM as misconfigured. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Agent threads can now be triggered with an initial prompt; their durable, cursor-paginated timeline records messages and tool calls. Operators may send a queued message (one pending message at a time) or a steering message, which records a cooperative cancellation request for an active execution. Every stored message and tool call creates an `agent.message` or `agent.tool_call` webhook delivery in the same database transaction. The frontend API is reserved for Clerk/OAuth authentication and the thread API for API-key authentication; neither authentication method is implemented yet. Worker-side model invocation and MCP tool execution remain the next implementation stages.
 
 Successful LLM completions are retained as 15-minute usage buckets. Each completion increments independent platform-, project-, agent-, and LLM-configuration-level aggregates. A bucket reports `callCount`, `inputTokens`, `cachedInputTokens`, `outputTokens`, `reasoningTokens`, and provider-reported `totalTokens`; token fields are zero when a compatible provider omits its `usage` object. Read the buckets with optional half-open `from`/`to` timestamps:
 
@@ -109,12 +109,14 @@ Successful LLM completions are retained as 15-minute usage buckets. Each complet
 - `GET /api/projects/{projectId}/agents/{agentId}/usage`
 - `GET /api/llm-configurations/{id}/usage`
 
-The execution endpoints are:
+The application-facing thread API, exposed locally at `http://localhost:8081`, provides:
 
 - `POST /api/projects/{projectId}/agents/{agentId}/threads` with `{ "initialPrompt": "..." }`
+- `GET /api/projects/{projectId}/agent-threads/{threadId}`
 - `GET /api/projects/{projectId}/agent-threads/{threadId}/timeline?afterSequence={cursor}&limit={1..100}`
 - `POST /api/projects/{projectId}/agent-threads/{threadId}/messages` with `{ "content": "...", "delivery": "Queued" | "Steering" }`
-- `POST /api/projects/{projectId}/agent-threads/{threadId}/tool-calls` for an execution worker to durably record a tool invocation.
+- `GET /api/projects/{projectId}/agent-threads/`
+- `DELETE /api/projects/{projectId}/agent-threads/{threadId}`
 
 ## Project layout
 
@@ -175,7 +177,8 @@ For host-based development, install the .NET SDK and Node.js as well. The backen
 ```bash
 dotnet restore
 dotnet test
-dotnet run --project apps/agent-platform-services/src/AgentPlatform.Api
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.Api --urls http://localhost:8080
+dotnet run --project apps/agent-platform-services/src/AgentPlatform.AgentApi --urls http://localhost:8081
 dotnet run --project apps/agent-platform-services/src/AgentPlatform.Worker
 
 cd apps/agent-platform-admin
@@ -183,7 +186,7 @@ npm install
 npm run dev
 ```
 
-Docker Compose passes the .NET connection and NATS settings from `.env` as standard environment variables. The browser accesses projects through same-origin Next.js route handlers; the administration container forwards those requests to the API over the internal Compose network. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
+Docker Compose publishes the frontend API on `FRONTEND_API_PORT` (8080 by default) and the application-facing thread API on `AGENT_API_PORT` (8081 by default). The browser accesses projects through same-origin Next.js route handlers; the administration container forwards control-plane calls to the frontend API and thread interactions to the thread API over the internal Compose network. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
 
 Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
