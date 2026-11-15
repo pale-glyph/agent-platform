@@ -20,6 +20,7 @@ public static class DependencyInjection
         }.ConnectionString;
 
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(dataSourceConnectionString));
+        services.AddScoped<IAccountRepository, EfAccountRepository>();
         services.AddScoped<IProjectRepository, EfProjectRepository>();
         services.AddScoped<IAgentRepository, EfAgentRepository>();
         services.AddScoped<IAgentThreadRepository, EfAgentThreadRepository>();

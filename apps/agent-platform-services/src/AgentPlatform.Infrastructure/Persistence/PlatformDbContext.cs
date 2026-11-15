@@ -5,6 +5,7 @@ using AgentPlatform.Domain.Projects;
 using AgentPlatform.Domain.Webhooks;
 using AgentPlatform.Domain.Threads;
 using AgentPlatform.Domain.Metrics;
+using AgentPlatform.Domain.Accounts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgentPlatform.Infrastructure.Persistence;
@@ -21,9 +22,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AgentThread> AgentThreads => Set<AgentThread>();
     public DbSet<AgentThreadEntry> AgentThreadEntries => Set<AgentThreadEntry>();
     public DbSet<UsageMetricBucket> UsageMetricBuckets => Set<UsageMetricBucket>();
+    public DbSet<Account> Accounts => Set<Account>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var account = modelBuilder.Entity<Account>();
+        account.ToTable("accounts");
+        account.HasKey(item => item.Id);
+        account.Property(item => item.Id).HasColumnName("id");
+        account.Property(item => item.ClerkUserId).HasColumnName("clerk_user_id").HasMaxLength(Account.MaximumClerkUserIdLength).IsRequired();
+        account.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
+        account.Property(item => item.LastSeenAt).HasColumnName("last_seen_at").IsRequired();
+        account.HasIndex(item => item.ClerkUserId).IsUnique();
+
         var usage = modelBuilder.Entity<UsageMetricBucket>();
         usage.ToTable("usage_metric_buckets");
         usage.HasKey(item => new { item.Scope, item.ScopeId, item.BucketStart });

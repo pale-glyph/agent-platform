@@ -2,9 +2,11 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 ARG JIM_AGENT_ID
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_JIM_AGENT_ID=$JIM_AGENT_ID
-COPY apps/agent-platform-admin/package.json ./
-RUN npm install
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+COPY apps/agent-platform-admin/package.json apps/agent-platform-admin/package-lock.json ./
+RUN npm ci
 
 COPY apps/agent-platform-admin/ ./
 RUN npm run build && npm prune --omit=dev
