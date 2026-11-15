@@ -28,6 +28,7 @@ builder.Services.AddScoped<AgentRuntimeService>();
 builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddHostedService<AgentPlatform.Infrastructure.Webhooks.WebhookDispatchWorker>();
 
@@ -40,6 +41,21 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.MapHealthChecks("/health");
+app.MapOpenApi();
+app.MapGet("/redoc", () => Results.Content("""
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Agent Platform API documentation</title>
+    </head>
+    <body>
+      <redoc spec-url="/openapi/v1.json"></redoc>
+      <script src="https://cdn.jsdelivr.net/npm/redoc@2.5.0/bundles/redoc.standalone.js"></script>
+    </body>
+    </html>
+    """, "text/html"));
 app.MapPlatformMcp();
 app.MapPost("/webhooks/receive", async (HttpRequest request, CancellationToken ct) =>
 {

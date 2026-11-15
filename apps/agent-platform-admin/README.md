@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-The development server runs at `http://localhost:3000`. Configure the .NET API base URL through environment configuration once authenticated API calls are introduced.
+The development server runs at `http://localhost:3000`. Configure the .NET API base URL through `API_INTERNAL_URL`. The administration header links to same-origin ReDoc documentation at `/redoc`; the frontend proxies that page and its OpenAPI document to the API service.
 
 ## Live agent updates
 
