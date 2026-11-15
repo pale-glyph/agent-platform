@@ -1,7 +1,12 @@
 using AgentPlatform.Application.Threads;
+using AgentPlatform.Application.Accounts;
 using AgentPlatform.Domain.Threads;
 using AgentPlatform.Infrastructure;
+using AgentPlatform.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +14,7 @@ var connectionString = builder.Configuration.GetConnectionString("Platform")
     ?? throw new InvalidOperationException("ConnectionStrings:Platform must be configured.");
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<AgentThreadService>();
+builder.Services.AddScoped<AccountService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
@@ -61,10 +67,41 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     return Task.CompletedTask;
 }));
 builder.Services.AddHealthChecks();
+var clerkIssuer = builder.Configuration["Clerk:Issuer"]
+    ?? throw new InvalidOperationException("Clerk:Issuer must be configured.");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = clerkIssuer;
+        options.TokenValidationParameters.ValidateAudience = false;
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 app.MapHealthChecks("/health");
+app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api") && context.User.Identity?.IsAuthenticated == true)
+    {
+        var clerkUserId = context.User.FindFirstValue("sub") ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(clerkUserId))
+        {
+            var accounts = context.RequestServices.GetRequiredService<AccountService>();
+            await accounts.RecordAuthenticatedAccountAsync(clerkUserId, context.RequestAborted);
+        }
+    }
+
+    await next();
+});
+app.UseAuthorization();
 app.MapOpenApi();
 app.MapGet("/redoc", () => Results.Content("""
     <!doctype html>
@@ -82,6 +119,7 @@ app.MapGet("/redoc", () => Results.Content("""
     """, "text/html"));
 
 var agentThreads = app.MapGroup("/api/projects/{projectId:guid}/agent-threads")
+    .RequireAuthorization()
     .WithTags("Agent threads")
     .WithDescription("Durable conversation lifecycle and timeline operations. A timeline entry is either a user/agent message or a tool call recorded during execution.");
 agentThreads.MapGet("/", async (Guid projectId, AgentThreadService service, CancellationToken ct) =>
@@ -162,6 +200,7 @@ app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", asyn
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["initialPrompt"] = [exception.Message] });
     }
 })
+    .RequireAuthorization()
     .WithName("CreateAgentThread")
     .WithSummary("Create and start an agent thread")
     .WithDescription("Creates a durable thread for the specified agent, records `initialPrompt` as its first user message, and starts execution. Supply a non-empty prompt of at most 100,000 characters. A `201` confirms acceptance, not a completed agent response; receive messages and optional tool activity through the configured project webhook.\n\nExample request:\n```json\n{\n  \"initialPrompt\": \"Review the deployment request and tell me what information is missing.\"\n}\n```")

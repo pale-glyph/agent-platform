@@ -1,4 +1,5 @@
 import { useWorkspaceNavigation } from "../../contexts/workspace-navigation-context";
+import { UserButton } from "@clerk/nextjs";
 
 type AppHeaderProps = { onCreateLlm: () => void };
 
@@ -31,6 +32,7 @@ export function AppHeader({ onCreateLlm }: AppHeaderProps) {
         <a className="documentation-link" href="/agent-redoc" target="_blank" rel="noreferrer">
           Agent API docs <span aria-hidden="true">↗</span>
         </a>
+        <UserButton />
         {page === "projects" ? (
           <button className="new-button" type="button" onClick={openProjectForm}>
             New project

@@ -1,15 +1,17 @@
-FROM node:22-alpine AS build
+FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 ARG JIM_AGENT_ID
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_JIM_AGENT_ID=$JIM_AGENT_ID
-COPY apps/agent-platform-admin/package.json ./
-RUN npm install
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+COPY apps/agent-platform-admin/package.json apps/agent-platform-admin/package-lock.json ./
+RUN npm ci
 
 COPY apps/agent-platform-admin/ ./
-RUN npm run build && npm prune --omit=dev
+RUN npm run build -- --webpack && npm prune --omit=dev
 
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

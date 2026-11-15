@@ -16,6 +16,17 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
         modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
         modelBuilder.HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+        modelBuilder.Entity("AgentPlatform.Domain.Accounts.Account", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<string>("ClerkUserId").IsRequired().HasMaxLength(255).HasColumnType("character varying(255)").HasColumnName("clerk_user_id");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<DateTimeOffset>("LastSeenAt").HasColumnType("timestamp with time zone").HasColumnName("last_seen_at");
+            item.HasKey("Id");
+            item.HasIndex("ClerkUserId").IsUnique();
+            item.ToTable("accounts");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Llm.LlmConfiguration", item =>
         {
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");

@@ -1,10 +1,11 @@
+import { authenticatedFetch } from "@/app/api/forward";
 import { NextRequest, NextResponse } from "next/server";
 
 const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080";
 
 async function forward(request: NextRequest, projectId: string, method: "GET" | "PUT" | "DELETE") {
   try {
-    const response = await fetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}`, {
+    const response = await authenticatedFetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}`, {
       method,
       body: method === "PUT" ? await request.text() : undefined,
       headers: method === "PUT" ? { "Content-Type": "application/json" } : undefined,
