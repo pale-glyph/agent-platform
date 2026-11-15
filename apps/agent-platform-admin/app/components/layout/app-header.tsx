@@ -24,15 +24,20 @@ export function AppHeader({ onCreateLlm }: AppHeaderProps) {
           </>
         )}
       </div>
-      {page === "projects" ? (
-        <button className="new-button" type="button" onClick={openProjectForm}>
-          New project
-        </button>
-      ) : page === "llm" ? (
-        <button className="new-button" type="button" onClick={onCreateLlm}>
-          New configuration
-        </button>
-      ) : null}
+      <div className="topbar-actions">
+        <a className="documentation-link" href="/redoc" target="_blank" rel="noreferrer">
+          API documentation <span aria-hidden="true">↗</span>
+        </a>
+        {page === "projects" ? (
+          <button className="new-button" type="button" onClick={openProjectForm}>
+            New project
+          </button>
+        ) : page === "llm" ? (
+          <button className="new-button" type="button" onClick={onCreateLlm}>
+            New configuration
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }
