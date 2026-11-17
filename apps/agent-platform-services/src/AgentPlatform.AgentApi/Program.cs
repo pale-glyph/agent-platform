@@ -4,6 +4,7 @@ using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using System.Text.Json.Serialization;
 using System.Security.Claims;
 
@@ -62,6 +63,39 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 
         Authenticate every request with an agent API key using `Authorization: Bearer <key>`. Each key is scoped to one configured agent and cannot access another agent's threads, including threads in the same project.
         """;
+
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>
+    {
+        [AgentApiKeyAuthenticationDefaults.Scheme] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            In = ParameterLocation.Header,
+            BearerFormat = "Agent API key",
+            Description = "Supply an API key created for the target agent as `Authorization: Bearer <key>`.",
+        },
+    };
+
+    if (document.Paths is not null)
+    {
+        foreach (var path in document.Paths.Values)
+        {
+            if (path?.Operations is not { } operations) continue;
+
+            foreach (var operation in operations.Values)
+            {
+                if (operation is null) continue;
+
+                operation.Security ??= [];
+                operation.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference(AgentApiKeyAuthenticationDefaults.Scheme, document)] = [],
+                });
+            }
+        }
+    }
+
     return Task.CompletedTask;
 }));
 builder.Services.AddHealthChecks();
