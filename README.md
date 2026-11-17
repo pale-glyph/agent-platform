@@ -151,9 +151,9 @@ Create your local configuration from the tracked template, then update any value
 cp example.env .env
 ```
 
-Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER` in `.env` for one Clerk instance. The issuer is the instance URL (for example, `https://example.clerk.accounts.dev`). The administration UI forwards Clerk session tokens to both .NET APIs, where they are validated and used to create/update durable account records. Never commit the secret key.
+Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER` in `.env` for one Clerk instance. The issuer is the instance URL (for example, `https://example.clerk.accounts.dev`). The administration UI forwards Clerk session tokens to the control-plane API, where they are validated and used to create/update durable account records. Never commit the secret key.
 
-To enable the dedicated administration chat, create a normal project agent named Jim, grant it the required platform MCP tools, and set its UUID as `JIM_AGENT_ID` in `.env`. Rebuild the administration image after changing this value.
+To enable the dedicated administration chat, create a normal project agent named Jim, grant it the required platform MCP tools, create an API key for it in **Agents → API keys**, then set its UUID as `JIM_AGENT_ID` and the generated key as `JIM_AGENT_API_KEY` in `.env`. The API key is server-only and must not use a `NEXT_PUBLIC_` prefix. Rebuild the administration image after changing either value.
 
 Build the API, worker, and administration UI images, then start the complete local stack:
 

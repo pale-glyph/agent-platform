@@ -17,7 +17,7 @@ npm run dev
 
 The development server runs at `http://localhost:3000`. Configure the control-plane API base URL through `API_INTERNAL_URL` and the thread-service API base URL through `THREAD_API_INTERNAL_URL`. The administration header links to same-origin ReDoc documentation at `/redoc` and `/agent-redoc`; the frontend proxies each page and its OpenAPI document to the corresponding API service.
 
-Clerk protects the UI and browser API routes. Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` for the admin app, plus `CLERK_JWT_ISSUER` for the .NET services. On an authenticated API request, the backend records the Clerk subject in its `accounts` table and refreshes its `last_seen_at` timestamp.
+Clerk protects the UI and browser API routes. Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` for the admin app, plus `CLERK_JWT_ISSUER` for the control-plane API. On an authenticated control-plane request, the backend records the Clerk subject in its `accounts` table and refreshes its `last_seen_at` timestamp. Jim’s server-side thread proxies instead use the server-only `JIM_AGENT_API_KEY`, which must be an API key created for the agent identified by `JIM_AGENT_ID`.
 
 Failed webhook deliveries can be removed from the delivery queue in the project Webhooks tab. This changes the delivery to `Cancelled` so it is no longer delivered or listed as failed, while preserving its audit record.
 
