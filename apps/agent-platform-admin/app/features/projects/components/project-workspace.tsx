@@ -2,12 +2,14 @@
 
 import { McpToolsDialog } from "../../../components/dialogs/mcp-tools-dialog";
 import { useWorkspaceNavigation } from "../../../contexts/workspace-navigation-context";
-import type { LlmConfiguration, Project } from "../../../types";
+import type { Agent, LlmConfiguration, Project } from "../../../types";
 import { projectTabs } from "../constants";
 import { useAgentForm } from "../hooks/use-agent-form";
+import { useState } from "react";
 import { useMcpServerForm } from "../hooks/use-mcp-server-form";
 import type { useProjectResources } from "../hooks/use-project-resources";
 import { AgentThreadsPanel } from "./agent-threads-panel";
+import { AgentApiKeysDialog } from "./agent-api-keys-dialog";
 import { AgentsTab } from "./agents-tab";
 import { ProjectOverview } from "./project-overview";
 import { ProjectWorkspacePage } from "./project-workspace-page";
@@ -26,6 +28,7 @@ export function ProjectWorkspace({
   resources,
 }: ProjectWorkspaceProps) {
   const { tab, reportMessage } = useWorkspaceNavigation();
+  const [apiKeysForAgent, setApiKeysForAgent] = useState<Agent | null>(null);
   const agentForm = useAgentForm({
     projectId: project.id,
     mcpServers: resources.mcpServers,
@@ -68,6 +71,7 @@ export function ProjectWorkspace({
             onSubmit={agentForm.save}
             onCancel={agentForm.closeForm}
             onDelete={(agent) => void agentForm.remove(agent)}
+            onManageApiKeys={setApiKeysForAgent}
             onNameChange={agentForm.setName}
             onDescriptionChange={agentForm.setDescription}
             onPromptChange={agentForm.setPrompt}
@@ -123,6 +127,7 @@ export function ProjectWorkspace({
           onClose={mcpServerForm.closeToolsDialog}
         />
       )}
+      {apiKeysForAgent && <AgentApiKeysDialog projectId={project.id} agent={apiKeysForAgent} onClose={() => setApiKeysForAgent(null)} onMessage={reportMessage} />}
     </>
   );
 }

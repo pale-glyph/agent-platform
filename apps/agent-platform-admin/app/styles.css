@@ -190,6 +190,20 @@ article p { color: #8491a3; font-size: 0.8rem; margin: 0.32rem 0 0; }
 .tools-table tbody td { color: #b6c0ce; font-size: 0.82rem; line-height: 1.5; min-width: 13rem; }
 .tools-table pre { background: #0e141e; border: 1px solid #2a3443; border-radius: 0.45rem; color: #d6e4f5; font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; max-height: 15rem; min-width: 20rem; overflow: auto; padding: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tools-modal-footer { border-top: 1px solid #2a3443; display: flex; justify-content: flex-end; padding: 0.75rem 1.25rem; }
+.api-keys-modal { max-width: 42rem; }
+.api-keys-content { display: grid; gap: 1rem; min-height: 15rem; padding: 1.25rem 1.5rem; }
+.api-key-form { align-items: end; display: grid; gap: 0.5rem; grid-template-columns: minmax(0, 1fr) auto; }
+.api-key-form label { color: #c9d2df; font-size: 0.8rem; font-weight: 700; grid-column: 1 / -1; }
+.api-key-form input { background: #0e141e; border: 1px solid #3b4657; border-radius: 0.45rem; color: #f4f7fb; min-height: 2.55rem; padding: 0 0.75rem; }
+.api-key-secret { background: #263a31; border: 1px solid #4e8b65; border-radius: 0.5rem; display: grid; gap: 0.55rem; padding: 0.9rem; }
+.api-key-secret strong { color: #c7f4d6; font-size: 0.8rem; }
+.api-key-secret code { color: #f0fff5; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.api-key-secret button { justify-self: start; }
+.api-key-list { display: grid; gap: 0.45rem; }
+.api-key-list li { align-items: center; border: 1px solid #2a3443; border-radius: 0.5rem; display: flex; justify-content: space-between; padding: 0.75rem; }
+.api-key-list li > div { display: grid; gap: 0.18rem; }
+.api-key-list code, .api-key-list small, .api-key-empty { color: #8491a3; font: 0.75rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.api-key-list small { font-family: inherit; }
 .webhook-metrics { border-bottom: 1px solid #2a3443; display: grid; gap: 1px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .usage-page { margin-top: 2rem; }
 .usage-actions { align-items: center; display: flex; justify-content: flex-end; min-height: 2.5rem; }

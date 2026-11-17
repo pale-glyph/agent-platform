@@ -5,6 +5,7 @@ using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Webhooks;
 using AgentPlatform.Application.Metrics;
 using AgentPlatform.Application.Accounts;
+using AgentPlatform.Application.Threads;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
@@ -21,11 +22,13 @@ var connectionString = builder.Configuration.GetConnectionString("Platform")
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<AgentApiKeyService>();
 builder.Services.AddScoped<LlmConfigurationService>();
 builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
 builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<AgentThreadService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
@@ -67,20 +70,6 @@ app.Use(async (context, next) =>
 });
 app.UseAuthorization();
 app.MapOpenApi();
-app.MapGet("/redoc", () => Results.Content("""
-    <!doctype html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Agent Platform API documentation</title>
-    </head>
-    <body>
-      <redoc spec-url="/openapi/v1.json"></redoc>
-      <script src="https://cdn.jsdelivr.net/npm/redoc@2.5.0/bundles/redoc.standalone.js"></script>
-    </body>
-    </html>
-    """, "text/html"));
 app.MapPlatformMcp();
 app.MapPost("/webhooks/receive", async (HttpRequest request, CancellationToken ct) =>
 {
@@ -149,6 +138,12 @@ projects.MapGet("/{projectId:guid}/usage", async (Guid projectId, DateTimeOffset
     return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
 });
 
+projects.MapGet("/{projectId:guid}/agent-threads/", async (Guid projectId, ProjectService projectsService, AgentThreadService threadsService, CancellationToken ct) =>
+{
+    if (await projectsService.FindAsync(projectId, ct) is null) return Results.NotFound();
+    return Results.Ok(await threadsService.ListAsync(projectId, ct));
+});
+
 var agents = projects.MapGroup("/{projectId:guid}/agents");
 agents.MapGet("/", async (Guid projectId, AgentService service, CancellationToken cancellationToken) =>
 {
@@ -184,6 +179,26 @@ agents.MapPut("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentReque
 
 agents.MapDelete("/{agentId:guid}", async (Guid projectId, Guid agentId, AgentService service, CancellationToken cancellationToken) =>
     await service.DeleteAsync(projectId, agentId, cancellationToken) ? Results.NoContent() : Results.NotFound());
+var agentApiKeys = agents.MapGroup("/{agentId:guid}/api-keys");
+agentApiKeys.MapGet("/", async (Guid projectId, Guid agentId, AgentApiKeyService service, CancellationToken ct) =>
+{
+    var keys = await service.ListAsync(projectId, agentId, ct);
+    return keys is null ? Results.NotFound() : Results.Ok(keys);
+});
+agentApiKeys.MapPost("/", async (Guid projectId, Guid agentId, AgentApiKeyRequest request, AgentApiKeyService service, CancellationToken ct) =>
+{
+    try
+    {
+        var key = await service.CreateAsync(projectId, agentId, request.Name ?? string.Empty, ct);
+        return key is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agents/{agentId}/api-keys/{key.Id}", key);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = [exception.Message] });
+    }
+});
+agentApiKeys.MapDelete("/{keyId:guid}", async (Guid projectId, Guid agentId, Guid keyId, AgentApiKeyService service, CancellationToken ct) =>
+    await service.DeleteAsync(projectId, agentId, keyId, ct) ? Results.NoContent() : Results.NotFound());
 agents.MapGet("/{agentId:guid}/usage", async (Guid projectId, Guid agentId, DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
 {
     var metrics = await service.ListAgentAsync(projectId, agentId, from, to, ct);
@@ -286,6 +301,7 @@ app.Run();
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt, Guid? LlmConfigurationId, McpToolGrantRequest[]? McpToolGrants);
+public sealed record AgentApiKeyRequest(string? Name);
 public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);

@@ -68,6 +68,20 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.ToTable("agents");
         });
 
+        modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentApiKey", item =>
+        {
+            item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
+            item.Property<Guid>("AgentId").HasColumnType("uuid").HasColumnName("agent_id");
+            item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
+            item.Property<string>("KeyHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)").HasColumnName("key_hash");
+            item.Property<string>("KeyPrefix").IsRequired().HasMaxLength(16).HasColumnType("character varying(16)").HasColumnName("key_prefix");
+            item.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("name");
+            item.HasKey("Id");
+            item.HasIndex("AgentId", "Name").IsUnique();
+            item.HasIndex("KeyHash").IsUnique();
+            item.ToTable("agent_api_keys");
+        });
+
         modelBuilder.Entity("AgentPlatform.Domain.Threads.AgentThread", item =>
         {
             item.Property<Guid>("Id").HasColumnType("uuid").HasColumnName("id");
@@ -197,6 +211,11 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
         {
             item.HasOne("AgentPlatform.Domain.Llm.LlmConfiguration", null).WithMany().HasForeignKey("LlmConfigurationId").OnDelete(DeleteBehavior.SetNull);
             item.HasOne("AgentPlatform.Domain.Projects.Project", null).WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+        });
+
+        modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentApiKey", item =>
+        {
+            item.HasOne("AgentPlatform.Domain.Agents.AgentDefinition", null).WithMany().HasForeignKey("AgentId").OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
 
         modelBuilder.Entity("AgentPlatform.Domain.Agents.AgentMcpToolGrant", item =>

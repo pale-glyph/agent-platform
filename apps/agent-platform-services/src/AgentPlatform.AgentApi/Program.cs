@@ -1,11 +1,11 @@
 using AgentPlatform.Application.Threads;
-using AgentPlatform.Application.Accounts;
 using AgentPlatform.Domain.Threads;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,7 +14,6 @@ var connectionString = builder.Configuration.GetConnectionString("Platform")
     ?? throw new InvalidOperationException("ConnectionStrings:Platform must be configured.");
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<AgentThreadService>();
-builder.Services.AddScoped<AccountService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
@@ -62,20 +61,51 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 
         All identifiers in the paths are UUIDs. Thread and timeline reads are scoped to the supplied project ID; a resource in a different project returns `404`.
 
-        API-key authentication will be added to this API before it is exposed outside the platform network. It is not enforced in this local development build.
+        Authenticate every request with an agent API key using `Authorization: Bearer <key>`. Each key is scoped to one configured agent and cannot access another agent's threads, including threads in the same project.
         """;
+
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>
+    {
+        [AgentApiKeyAuthenticationDefaults.Scheme] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            In = ParameterLocation.Header,
+            BearerFormat = "Agent API key",
+            Description = "Supply an API key created for the target agent as `Authorization: Bearer <key>`.",
+        },
+    };
+
+    if (document.Paths is not null)
+    {
+        foreach (var path in document.Paths.Values)
+        {
+            if (path?.Operations is not { } operations) continue;
+
+            foreach (var operation in operations.Values)
+            {
+                if (operation is null) continue;
+
+                operation.Security ??= [];
+                operation.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference(AgentApiKeyAuthenticationDefaults.Scheme, document)] = [],
+                });
+            }
+        }
+    }
+
     return Task.CompletedTask;
 }));
 builder.Services.AddHealthChecks();
-var clerkIssuer = builder.Configuration["Clerk:Issuer"]
-    ?? throw new InvalidOperationException("Clerk:Issuer must be configured.");
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = clerkIssuer;
-        options.TokenValidationParameters.ValidateAudience = false;
-    });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthentication(AgentApiKeyAuthenticationDefaults.Scheme)
+    .AddScheme<AuthenticationSchemeOptions, AgentApiKeyAuthenticationHandler>(AgentApiKeyAuthenticationDefaults.Scheme, _ => { });
+builder.Services.AddAuthorization(options => options.AddPolicy("agent-api", policy =>
+{
+    policy.AddAuthenticationSchemes(AgentApiKeyAuthenticationDefaults.Scheme);
+    policy.RequireAuthenticatedUser();
+}));
 
 var app = builder.Build();
 
@@ -87,20 +117,6 @@ await using (var scope = app.Services.CreateAsyncScope())
 
 app.MapHealthChecks("/health");
 app.UseAuthentication();
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api") && context.User.Identity?.IsAuthenticated == true)
-    {
-        var clerkUserId = context.User.FindFirstValue("sub") ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!string.IsNullOrWhiteSpace(clerkUserId))
-        {
-            var accounts = context.RequestServices.GetRequiredService<AccountService>();
-            await accounts.RecordAuthenticatedAccountAsync(clerkUserId, context.RequestAborted);
-        }
-    }
-
-    await next();
-});
 app.UseAuthorization();
 app.MapOpenApi();
 app.MapGet("/redoc", () => Results.Content("""
@@ -119,29 +135,31 @@ app.MapGet("/redoc", () => Results.Content("""
     """, "text/html"));
 
 var agentThreads = app.MapGroup("/api/projects/{projectId:guid}/agent-threads")
-    .RequireAuthorization()
+    .RequireAuthorization("agent-api")
     .WithTags("Agent threads")
     .WithDescription("Durable conversation lifecycle and timeline operations. A timeline entry is either a user/agent message or a tool call recorded during execution.");
-agentThreads.MapGet("/", async (Guid projectId, AgentThreadService service, CancellationToken ct) =>
-    Results.Ok(await service.ListAsync(projectId, ct)))
+agentThreads.MapGet("/", async (Guid projectId, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
+    IsAuthorizedProject(user, projectId) ? Results.Ok((await service.ListAsync(projectId, ct)).Where(thread => thread.AgentId == AgentId(user))) : Results.NotFound())
     .WithName("ListAgentThreads")
     .WithSummary("List a project's agent threads")
     .WithDescription("Returns every thread in the project, newest first. Filter the returned `agentId` client-side when an application is concerned with one agent.")
     .Produces<IReadOnlyList<AgentThreadSummary>>(StatusCodes.Status200OK);
-agentThreads.MapGet("/{threadId:guid}", async (Guid projectId, Guid threadId, AgentThreadService service, CancellationToken ct) =>
+agentThreads.MapGet("/{threadId:guid}", async (Guid projectId, Guid threadId, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
 {
     var thread = await service.FindAsync(projectId, threadId, ct);
-    return thread is null ? Results.NotFound() : Results.Ok(thread);
+    return thread is null || !IsAuthorized(user, projectId, thread.AgentId) ? Results.NotFound() : Results.Ok(thread);
 })
     .WithName("GetAgentThread")
     .WithSummary("Get an agent thread")
     .WithDescription("Use this to check the current lifecycle status. A thread starts as `Running`; executions may later become `Completed`, `Failed`, or another terminal state.")
     .Produces<AgentThreadSummary>(StatusCodes.Status200OK)
     .Produces(StatusCodes.Status404NotFound);
-agentThreads.MapGet("/{threadId:guid}/timeline", async (Guid projectId, Guid threadId, long? afterSequence, int? limit, AgentThreadService service, CancellationToken ct) =>
+agentThreads.MapGet("/{threadId:guid}/timeline", async (Guid projectId, Guid threadId, long? afterSequence, int? limit, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
 {
     try
     {
+        var thread = await service.FindAsync(projectId, threadId, ct);
+        if (thread is null || !IsAuthorized(user, projectId, thread.AgentId)) return Results.NotFound();
         var page = await service.ListEntriesAsync(projectId, threadId, afterSequence, limit ?? 50, ct);
         return page is null ? Results.NotFound() : Results.Ok(page);
     }
@@ -156,17 +174,22 @@ agentThreads.MapGet("/{threadId:guid}/timeline", async (Guid projectId, Guid thr
     .Produces<AgentThreadPage>(StatusCodes.Status200OK)
     .ProducesValidationProblem(StatusCodes.Status400BadRequest)
     .Produces(StatusCodes.Status404NotFound);
-agentThreads.MapDelete("/{threadId:guid}", async (Guid projectId, Guid threadId, AgentThreadService service, CancellationToken ct) =>
-    await service.DeleteAsync(projectId, threadId, ct) ? Results.NoContent() : Results.NotFound())
+agentThreads.MapDelete("/{threadId:guid}", async (Guid projectId, Guid threadId, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
+{
+    var thread = await service.FindAsync(projectId, threadId, ct);
+    return thread is not null && IsAuthorized(user, projectId, thread.AgentId) && await service.DeleteAsync(projectId, threadId, ct) ? Results.NoContent() : Results.NotFound();
+})
     .WithName("DeleteAgentThread")
     .WithSummary("Delete an agent thread")
     .WithDescription("Permanently deletes the thread and its execution history. This action cannot be undone.")
     .Produces(StatusCodes.Status204NoContent)
     .Produces(StatusCodes.Status404NotFound);
-agentThreads.MapPost("/{threadId:guid}/messages", async (Guid projectId, Guid threadId, SubmitAgentMessageRequest request, AgentThreadService service, CancellationToken ct) =>
+agentThreads.MapPost("/{threadId:guid}/messages", async (Guid projectId, Guid threadId, SubmitAgentMessageRequest request, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
 {
     try
     {
+        var thread = await service.FindAsync(projectId, threadId, ct);
+        if (thread is null || !IsAuthorized(user, projectId, thread.AgentId)) return Results.NotFound();
         var message = await service.SubmitMessageAsync(projectId, threadId, request.Content ?? string.Empty, request.Delivery, ct);
         return message is null ? Results.NotFound() : Results.Accepted($"/api/projects/{projectId}/agent-threads/{threadId}/timeline", message);
     }
@@ -188,10 +211,11 @@ agentThreads.MapPost("/{threadId:guid}/messages", async (Guid projectId, Guid th
     .Produces(StatusCodes.Status404NotFound)
     .Produces(StatusCodes.Status409Conflict);
 
-app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", async (Guid projectId, Guid agentId, TriggerAgentThreadRequest request, AgentThreadService service, CancellationToken ct) =>
+app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", async (Guid projectId, Guid agentId, TriggerAgentThreadRequest request, ClaimsPrincipal user, AgentThreadService service, CancellationToken ct) =>
 {
     try
     {
+        if (!IsAuthorized(user, projectId, agentId)) return Results.NotFound();
         var thread = await service.TriggerAsync(projectId, agentId, request.InitialPrompt ?? string.Empty, ct);
         return thread is null ? Results.NotFound() : Results.Created($"/api/projects/{projectId}/agent-threads/{thread.Id}", thread);
     }
@@ -200,7 +224,7 @@ app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", asyn
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["initialPrompt"] = [exception.Message] });
     }
 })
-    .RequireAuthorization()
+    .RequireAuthorization("agent-api")
     .WithName("CreateAgentThread")
     .WithSummary("Create and start an agent thread")
     .WithDescription("Creates a durable thread for the specified agent, records `initialPrompt` as its first user message, and starts execution. Supply a non-empty prompt of at most 100,000 characters. A `201` confirms acceptance, not a completed agent response; receive messages and optional tool activity through the configured project webhook.\n\nExample request:\n```json\n{\n  \"initialPrompt\": \"Review the deployment request and tell me what information is missing.\"\n}\n```")
@@ -210,6 +234,10 @@ app.MapPost("/api/projects/{projectId:guid}/agents/{agentId:guid}/threads", asyn
     .Produces(StatusCodes.Status404NotFound);
 
 app.Run();
+
+static Guid AgentId(ClaimsPrincipal user) => Guid.Parse(user.FindFirstValue(AgentApiKeyAuthenticationDefaults.AgentIdClaimType)!);
+static bool IsAuthorizedProject(ClaimsPrincipal user, Guid projectId) => user.FindFirstValue(AgentApiKeyAuthenticationDefaults.ProjectIdClaimType) == projectId.ToString();
+static bool IsAuthorized(ClaimsPrincipal user, Guid projectId, Guid agentId) => IsAuthorizedProject(user, projectId) && AgentId(user) == agentId;
 
 public sealed record TriggerAgentThreadRequest(string? InitialPrompt);
 public sealed record SubmitAgentMessageRequest(string? Content, AgentMessageDelivery Delivery);
