@@ -5,6 +5,7 @@ using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Webhooks;
 using AgentPlatform.Application.Metrics;
 using AgentPlatform.Application.Accounts;
+using AgentPlatform.Application.Threads;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
@@ -27,6 +28,7 @@ builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
 builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<AgentThreadService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
@@ -134,6 +136,12 @@ projects.MapGet("/{projectId:guid}/usage", async (Guid projectId, DateTimeOffset
 {
     var metrics = await service.ListProjectAsync(projectId, from, to, ct);
     return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
+});
+
+projects.MapGet("/{projectId:guid}/agent-threads/", async (Guid projectId, ProjectService projectsService, AgentThreadService threadsService, CancellationToken ct) =>
+{
+    if (await projectsService.FindAsync(projectId, ct) is null) return Results.NotFound();
+    return Results.Ok(await threadsService.ListAsync(projectId, ct));
 });
 
 var agents = projects.MapGroup("/{projectId:guid}/agents");
