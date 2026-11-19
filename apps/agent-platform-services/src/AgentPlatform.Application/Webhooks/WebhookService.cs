@@ -15,13 +15,13 @@ public sealed class WebhookService(IProjectRepository projects, IWebhookReposito
     public async Task<IReadOnlyList<WebhookSummary>?> ListAsync(Guid projectId, CancellationToken ct)
     {
         if (await projects.FindByIdAsync(projectId, ct) is null) return null;
-        await outboundUrls.ValidateAsync(endpointUrl, OutboundUrlPurpose.Webhook, ct);
         return (await webhooks.ListByProjectAsync(projectId, ct)).Select(Map).ToArray();
     }
 
     public async Task<WebhookSummary?> CreateAsync(Guid projectId, string name, string endpointUrl, string secret, IEnumerable<string> events, CancellationToken ct)
     {
         if (await projects.FindByIdAsync(projectId, ct) is null) return null;
+        await outboundUrls.ValidateAsync(endpointUrl, OutboundUrlPurpose.Webhook, ct);
         var item = new WebhookEndpoint(Guid.NewGuid(), projectId, name, endpointUrl, secret, events, clock.GetUtcNow());
         await webhooks.AddAsync(item, ct);
         await webhooks.SaveChangesAsync(ct);
