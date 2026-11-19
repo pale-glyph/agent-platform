@@ -5,10 +5,11 @@ using AgentPlatform.Domain.Mcp;
 
 namespace AgentPlatform.Infrastructure.Mcp;
 
-public sealed class HttpMcpToolDefinitionClient(IHttpClientFactory httpClientFactory) : IMcpToolDefinitionClient
+public sealed class HttpMcpToolDefinitionClient(IHttpClientFactory httpClientFactory, IOutboundUrlPolicy outboundUrls) : IMcpToolDefinitionClient
 {
     public async Task<string> ListToolsAsync(McpServer server, CancellationToken cancellationToken)
     {
+        await outboundUrls.ValidateAsync(server.Endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         using var request = new HttpRequestMessage(HttpMethod.Post, server.Endpoint)
         {
             Content = JsonContent.Create(new { jsonrpc = "2.0", id = Guid.NewGuid().ToString("N"), method = "tools/list", @params = new { } }),

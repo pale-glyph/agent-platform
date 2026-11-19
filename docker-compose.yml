@@ -10,6 +10,10 @@ services:
       Nats__Url: ${NATS_URL}
       Nats__StreamName: ${NATS_STREAM_NAME}
       Clerk__Issuer: ${CLERK_JWT_ISSUER}
+      OutboundHttp__AllowedLlmHosts: ${OUTBOUND_HTTP__ALLOWED_LLM_HOSTS:-}
+      OutboundHttp__AllowedMcpHosts: ${OUTBOUND_HTTP__ALLOWED_MCP_HOSTS:-}
+      OutboundHttp__AllowedWebhookHosts: ${OUTBOUND_HTTP__ALLOWED_WEBHOOK_HOSTS:-}
+      OutboundHttp__InternalMcpHosts: ${OUTBOUND_HTTP__INTERNAL_MCP_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,6 +40,10 @@ services:
       Nats__Url: ${NATS_URL}
       Nats__StreamName: ${NATS_STREAM_NAME}
       Clerk__Issuer: ${CLERK_JWT_ISSUER}
+      OutboundHttp__AllowedLlmHosts: ${OUTBOUND_HTTP__ALLOWED_LLM_HOSTS:-}
+      OutboundHttp__AllowedMcpHosts: ${OUTBOUND_HTTP__ALLOWED_MCP_HOSTS:-}
+      OutboundHttp__AllowedWebhookHosts: ${OUTBOUND_HTTP__ALLOWED_WEBHOOK_HOSTS:-}
+      OutboundHttp__InternalMcpHosts: ${OUTBOUND_HTTP__INTERNAL_MCP_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,6 +65,10 @@ services:
       ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
       Nats__Url: ${NATS_URL}
       Nats__StreamName: ${NATS_STREAM_NAME}
+      OutboundHttp__AllowedLlmHosts: ${OUTBOUND_HTTP__ALLOWED_LLM_HOSTS:-}
+      OutboundHttp__AllowedMcpHosts: ${OUTBOUND_HTTP__ALLOWED_MCP_HOSTS:-}
+      OutboundHttp__AllowedWebhookHosts: ${OUTBOUND_HTTP__ALLOWED_WEBHOOK_HOSTS:-}
+      OutboundHttp__InternalMcpHosts: ${OUTBOUND_HTTP__INTERNAL_MCP_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -174,6 +174,8 @@ docker network create agent-platform-mcp
 
 Attach each separately deployed MCP server container to that network. Configure its project MCP-server endpoint using that container's network DNS name, for example `http://my-mcp-server:3000/mcp`. MCP server ports do not need to be published to the host unless another host-side client needs access.
 
+Before configuring an LLM, webhook, or MCP server, allowlist its hostname in `.env`. `OUTBOUND_HTTP__ALLOWED_LLM_HOSTS`, `OUTBOUND_HTTP__ALLOWED_WEBHOOK_HOSTS`, and `OUTBOUND_HTTP__ALLOWED_MCP_HOSTS` are comma-separated and deny all destinations by default. All LLM and webhook destinations must be public HTTPS endpoints. An internal HTTP MCP hostname must appear in both `OUTBOUND_HTTP__ALLOWED_MCP_HOSTS` and `OUTBOUND_HTTP__INTERNAL_MCP_HOSTS`; use this narrowly for the named Docker MCP network.
+
 For host-based development, install the .NET SDK and Node.js as well. The backend projects are under `apps/agent-platform-services/src`:
 
 ```bash
