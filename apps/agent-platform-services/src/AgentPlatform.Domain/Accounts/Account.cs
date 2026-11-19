@@ -4,20 +4,23 @@ public sealed class Account
 {
     public const int MaximumClerkUserIdLength = 255;
 
-    public Account(Guid id, string clerkUserId, DateTimeOffset createdAt)
+    public Account(Guid id, string clerkUserId, DateTimeOffset createdAt, bool isAdmin = false)
     {
         Id = id;
         ClerkUserId = NormalizeClerkUserId(clerkUserId);
         CreatedAt = createdAt;
         LastSeenAt = createdAt;
+        IsAdmin = isAdmin;
     }
 
     public Guid Id { get; }
     public string ClerkUserId { get; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset LastSeenAt { get; private set; }
+    public bool IsAdmin { get; private set; }
 
     public void RecordActivity(DateTimeOffset occurredAt) => LastSeenAt = occurredAt;
+    public void SetAdministrator(bool isAdmin) => IsAdmin = isAdmin;
 
     private static string NormalizeClerkUserId(string clerkUserId)
     {

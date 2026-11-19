@@ -66,7 +66,8 @@ export function useProjectWebhooks(
   }, [refresh]);
 
   useEffect(() => {
-    const stream = new EventSource("/api/agent-events");
+    if (!projectId) return;
+    const stream = new EventSource(`/api/agent-events?${new URLSearchParams({ projectId })}`);
     const refreshForProject = (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as { projectId: string };
       if (message.projectId === projectId) void refresh();

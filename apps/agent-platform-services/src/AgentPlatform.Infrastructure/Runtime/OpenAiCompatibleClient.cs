@@ -1,18 +1,20 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Application.Runtime;
 using AgentPlatform.Domain.Llm;
 
 namespace AgentPlatform.Infrastructure.Runtime;
 
 /// <summary>Minimal Chat Completions adapter for OpenAI-compatible providers.</summary>
-public sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactory) : IOpenAiCompatibleClient
+public sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactory, IOutboundUrlPolicy outboundUrls) : IOpenAiCompatibleClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<RuntimeCompletion> CompleteAsync(LlmConfiguration configuration, IReadOnlyList<RuntimeChatMessage> messages, IReadOnlyList<RuntimeToolDefinition> tools, CancellationToken cancellationToken)
     {
+        await outboundUrls.ValidateAsync(configuration.ProviderUrl, OutboundUrlPurpose.Llm, cancellationToken);
         using var request = new HttpRequestMessage(HttpMethod.Post, CompletionEndpoint(configuration.ProviderUrl));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuration.ApiKey);
         var payload = new Dictionary<string, object?>

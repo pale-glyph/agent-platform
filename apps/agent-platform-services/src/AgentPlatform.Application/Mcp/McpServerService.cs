@@ -6,11 +6,12 @@ namespace AgentPlatform.Application.Mcp;
 public sealed record McpServerSummary(Guid Id, Guid ProjectId, string Name, string Endpoint, int CacheTtlSeconds, McpServerSecurity Security, DateTimeOffset? CacheExpiresAt, DateTimeOffset CreatedAt);
 public sealed record McpToolDefinitions(string ToolsJson, bool FromCache);
 
-public sealed class McpServerService(IProjectRepository projects, IMcpServerRepository servers, IMcpToolDefinitionClient toolDefinitions, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
+public sealed class McpServerService(IProjectRepository projects, IMcpServerRepository servers, IMcpToolDefinitionClient toolDefinitions, IWebhookEventPublisher webhookEvents, IOutboundUrlPolicy outboundUrls, TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<McpServerSummary>?> ListAsync(Guid projectId, CancellationToken cancellationToken)
     {
         if (await projects.FindByIdAsync(projectId, cancellationToken) is null) return null;
+        await outboundUrls.ValidateAsync(endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         return (await servers.ListByProjectAsync(projectId, cancellationToken)).Select(ToSummary).ToArray();
     }
 
@@ -28,6 +29,7 @@ public sealed class McpServerService(IProjectRepository projects, IMcpServerRepo
     {
         var server = await servers.FindByIdAsync(projectId, serverId, cancellationToken);
         if (server is null) return null;
+        await outboundUrls.ValidateAsync(endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         server.Update(name, endpoint, cacheTtlSeconds, security, apiKey);
         await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.McpServerUpdated, ToSummary(server), cancellationToken);
         await servers.SaveChangesAsync(cancellationToken);

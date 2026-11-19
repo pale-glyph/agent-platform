@@ -8,10 +8,13 @@ using AgentPlatform.Application.Accounts;
 using AgentPlatform.Application.Threads;
 using AgentPlatform.Domain.Mcp;
 using AgentPlatform.Api.Mcp;
+using AgentPlatform.Api.Authorization;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 
@@ -28,6 +31,7 @@ builder.Services.AddScoped<McpServerService>();
 builder.Services.AddScoped<WebhookService>();
 builder.Services.AddScoped<UsageMetricService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<IAuthorizationHandler, PlatformAdministratorAuthorizationHandler>();
 builder.Services.AddScoped<AgentThreadService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -41,8 +45,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.Authority = clerkIssuer;
         options.TokenValidationParameters.ValidateAudience = false;
+    })
+    .AddScheme<AuthenticationSchemeOptions, PlatformMcpAuthenticationHandler>(PlatformMcpAuthenticationDefaults.Scheme, _ => { });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("platform-mcp", policy =>
+    {
+        policy.AddAuthenticationSchemes(PlatformMcpAuthenticationDefaults.Scheme);
+        policy.RequireAuthenticatedUser();
     });
-builder.Services.AddAuthorization();
+    options.AddPolicy("platform-admin", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.AddRequirements(new PlatformAdministratorRequirement());
+    });
+});
 
 var app = builder.Build();
 
@@ -77,7 +94,7 @@ app.MapPost("/webhooks/receive", async (HttpRequest request, CancellationToken c
     return Results.Ok();
 });
 
-var llmConfigurations = app.MapGroup("/api/llm-configurations").RequireAuthorization();
+var llmConfigurations = app.MapGroup("/api/llm-configurations").RequireAuthorization("platform-admin");
 llmConfigurations.MapGet("/", async (LlmConfigurationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct)));
 llmConfigurations.MapPost("/", async (LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.CreateAsync(request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey ?? "", ct); return Results.Created($"/api/llm-configurations/{item.Id}", item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
 llmConfigurations.MapPut("/{id:guid}", async (Guid id, LlmConfigurationRequest request, LlmConfigurationService service, CancellationToken ct) => { try { var item = await service.UpdateAsync(id, request.Name ?? "", request.ProviderUrl ?? "", request.ModelName ?? "", request.ApiKey, ct); return item is null ? Results.NotFound() : Results.Ok(item); } catch (ArgumentException exception) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["configuration"] = [exception.Message] }); } });
@@ -89,12 +106,26 @@ llmConfigurations.MapGet("/{id:guid}/usage", async (Guid id, DateTimeOffset? fro
 });
 
 app.MapGet("/api/usage/platform", async (DateTimeOffset? from, DateTimeOffset? to, UsageMetricService service, CancellationToken ct) =>
-    Results.Ok((await service.ListPlatformAsync(from, to, ct)).Select(UsageMetricBucketSummary.From))).RequireAuthorization();
+    Results.Ok((await service.ListPlatformAsync(from, to, ct)).Select(UsageMetricBucketSummary.From))).RequireAuthorization("platform-admin");
 
 app.MapGet("/api/accounts/me", (ClaimsPrincipal user) =>
-    Results.Ok(new { clerkUserId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier) })).RequireAuthorization();
+    Results.Ok(new { clerkUserId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier) })).RequireAuthorization("platform-admin");
 
-var projects = app.MapGroup("/api/projects").RequireAuthorization();
+app.MapGet("/api/accounts", async (AccountService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct))).RequireAuthorization("platform-admin");
+app.MapPut("/api/accounts/{clerkUserId}/administrator", async (string clerkUserId, SetAccountAdministratorRequest request, AccountService service, CancellationToken ct) =>
+{
+    try
+    {
+        var account = await service.SetAdministratorAsync(clerkUserId, request.IsAdmin, ct);
+        return account is null ? Results.NotFound() : Results.Ok(account);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Conflict(new { title = exception.Message });
+    }
+}).RequireAuthorization("platform-admin");
+
+var projects = app.MapGroup("/api/projects").RequireAuthorization("platform-admin");
 projects.MapGet("/", async (ProjectService service, CancellationToken cancellationToken) =>
     Results.Ok((await service.ListAsync(cancellationToken)).Select(ProjectResponse.FromSummary)));
 
@@ -306,6 +337,7 @@ public sealed record McpToolGrantRequest(Guid McpServerId, string? ToolName);
 public sealed record LlmConfigurationRequest(string? Name, string? ProviderUrl, string? ModelName, string? ApiKey);
 public sealed record McpServerRequest(string? Name, string? Endpoint, int CacheTtlSeconds, McpServerSecurity Security, string? ApiKey);
 public sealed record WebhookRequest(string? Name, string? EndpointUrl, string? Secret, string[]? Events, bool? Enabled);
+public sealed record SetAccountAdministratorRequest(bool IsAdmin);
 public sealed record ProjectResponse(Guid Id, string Name, DateTimeOffset CreatedAt)
 {
     public static ProjectResponse FromSummary(ProjectSummary summary) => new(summary.Id, summary.Name, summary.CreatedAt);

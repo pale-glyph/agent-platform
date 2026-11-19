@@ -10,11 +10,12 @@ public enum DeleteWebhookDeliveryResult
     NotFailed,
 }
 
-public sealed class WebhookService(IProjectRepository projects, IWebhookRepository webhooks, TimeProvider clock)
+public sealed class WebhookService(IProjectRepository projects, IWebhookRepository webhooks, IOutboundUrlPolicy outboundUrls, TimeProvider clock)
 {
     public async Task<IReadOnlyList<WebhookSummary>?> ListAsync(Guid projectId, CancellationToken ct)
     {
         if (await projects.FindByIdAsync(projectId, ct) is null) return null;
+        await outboundUrls.ValidateAsync(endpointUrl, OutboundUrlPurpose.Webhook, ct);
         return (await webhooks.ListByProjectAsync(projectId, ct)).Select(Map).ToArray();
     }
 
@@ -31,6 +32,7 @@ public sealed class WebhookService(IProjectRepository projects, IWebhookReposito
     {
         var item = await webhooks.FindAsync(projectId, webhookId, ct);
         if (item is null) return null;
+        await outboundUrls.ValidateAsync(endpointUrl, OutboundUrlPurpose.Webhook, ct);
         item.Update(name, endpointUrl, secret, events);
         if (enabled) item.Enable(); else item.Disable();
         if (!enabled) await webhooks.CancelPendingForWebhookAsync(webhookId, clock.GetUtcNow(), ct);

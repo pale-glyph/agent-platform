@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPlatform.Infrastructure.Webhooks;
 
-public sealed class WebhookDispatchWorker(IServiceScopeFactory scopeFactory, IHttpClientFactory clients, TimeProvider clock, ILogger<WebhookDispatchWorker> logger) : BackgroundService
+public sealed class WebhookDispatchWorker(IServiceScopeFactory scopeFactory, IHttpClientFactory clients, IOutboundUrlPolicy outboundUrls, TimeProvider clock, ILogger<WebhookDispatchWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -42,6 +42,17 @@ public sealed class WebhookDispatchWorker(IServiceScopeFactory scopeFactory, IHt
 
     private async Task DispatchAsync(WebhookDelivery delivery, IWebhookDeliveryStore store, CancellationToken ct)
     {
+        try
+        {
+            await outboundUrls.ValidateAsync(delivery.EndpointUrl, OutboundUrlPurpose.Webhook, ct);
+        }
+        catch (OutboundUrlPolicyException exception)
+        {
+            await store.MarkFailedAsync(delivery, clock.GetUtcNow(), exception.Message, null, false, ct);
+            logger.LogWarning("Webhook delivery {DeliveryId} was blocked by the outbound URL policy.", delivery.Id);
+            return;
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, delivery.EndpointUrl)
         {
             Content = new StringContent(delivery.Payload, Encoding.UTF8, "application/json"),

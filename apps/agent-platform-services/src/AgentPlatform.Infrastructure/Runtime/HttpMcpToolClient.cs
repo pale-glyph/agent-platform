@@ -1,14 +1,16 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Application.Runtime;
 using AgentPlatform.Domain.Mcp;
 
 namespace AgentPlatform.Infrastructure.Runtime;
 
-public sealed class HttpMcpToolClient(IHttpClientFactory httpClientFactory) : IMcpToolClient
+public sealed class HttpMcpToolClient(IHttpClientFactory httpClientFactory, IOutboundUrlPolicy outboundUrls) : IMcpToolClient
 {
     public async Task<string> CallAsync(McpServer server, string toolName, string argumentsJson, CancellationToken cancellationToken)
     {
+        await outboundUrls.ValidateAsync(server.Endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         using var arguments = JsonDocument.Parse(argumentsJson);
         if (arguments.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidOperationException("Tool arguments must be a JSON object.");
         using var request = new HttpRequestMessage(HttpMethod.Post, server.Endpoint)
