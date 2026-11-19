@@ -11,13 +11,13 @@ public sealed class McpServerService(IProjectRepository projects, IMcpServerRepo
     public async Task<IReadOnlyList<McpServerSummary>?> ListAsync(Guid projectId, CancellationToken cancellationToken)
     {
         if (await projects.FindByIdAsync(projectId, cancellationToken) is null) return null;
-        await outboundUrls.ValidateAsync(endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         return (await servers.ListByProjectAsync(projectId, cancellationToken)).Select(ToSummary).ToArray();
     }
 
     public async Task<McpServerSummary?> CreateAsync(Guid projectId, string name, string endpoint, int cacheTtlSeconds, McpServerSecurity security, string? apiKey, CancellationToken cancellationToken)
     {
         if (await projects.FindByIdAsync(projectId, cancellationToken) is null) return null;
+        await outboundUrls.ValidateAsync(endpoint, OutboundUrlPurpose.Mcp, cancellationToken);
         var server = new McpServer(Guid.NewGuid(), projectId, name, endpoint, cacheTtlSeconds, security, apiKey, timeProvider.GetUtcNow());
         await servers.AddAsync(server, cancellationToken);
         await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.McpServerCreated, ToSummary(server), cancellationToken);
