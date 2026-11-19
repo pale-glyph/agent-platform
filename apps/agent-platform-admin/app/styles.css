@@ -26,10 +26,6 @@ nav a:hover, nav a:focus-visible, nav button:hover, nav button:focus-visible { b
 nav a.active, nav button.active { background: #263a31; color: #a9efc2; font-weight: 650; }
 .nav-icon { align-items: center; display: inline-flex; flex: 0 0 1.25rem; justify-content: center; }
 .nav-icon svg { height: 1.2rem; width: 1.2rem; }
-.sidebar-footer { align-items: center; border-top: 1px solid #252d3b; display: flex; gap: 0.7rem; min-height: 4.8rem; overflow: hidden; padding: 0.75rem 1.15rem; white-space: nowrap; }
-.avatar { align-items: center; background: #2d405c; border-radius: 50%; color: #bfdbfe; display: inline-flex; flex: 0 0 auto; font-size: 0.68rem; font-weight: 800; height: 2rem; justify-content: center; width: 2rem; }
-.profile-copy { display: grid; gap: 0.12rem; font-size: 0.78rem; }
-.profile-copy small { color: #8290a4; font-size: 0.69rem; }
 .workspace { margin-left: 16.25rem; min-height: 100vh; transition: margin-left 180ms ease; }
 .topbar { align-items: center; border-bottom: 1px solid #252d3b; display: flex; height: 4.5rem; justify-content: space-between; padding: 0 2.4rem; }
 .topbar-actions { align-items: center; display: flex; gap: 0.75rem; }
