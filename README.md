@@ -97,6 +97,7 @@ stateDiagram-v2
 - [Administration UI architecture](docs/design/002-administration-ui-architecture.md) — the Next.js-based administration application and its boundaries.
 - [Platform administration agent](docs/design/003-platform-administration-agent.md) — a UI-created agent that configures its project through explicitly granted MCP tools.
 - [Agent consumer specification](docs/agent-consumer-specification.md) — integrate a coding agent with chat threads and signed webhook events.
+- [Knowledge Base microservice specification](docs/knowledge-base-microservice-specification.md) — proposed project-scoped documents, asynchronous pgvector indexing, and explicitly granted MCP retrieval.
 
 ## Repository status
 
