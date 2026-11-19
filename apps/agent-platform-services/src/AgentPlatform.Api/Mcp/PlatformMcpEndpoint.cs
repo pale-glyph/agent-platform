@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Claims;
+using AgentPlatform.Application.Abstractions;
 using AgentPlatform.Application.Agents;
 using AgentPlatform.Application.Mcp;
 using AgentPlatform.Application.Projects;
@@ -14,12 +16,12 @@ public static class PlatformMcpEndpoint
 
     public static IEndpointRouteBuilder MapPlatformMcp(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/mcp", () => Results.Ok(new { name = "agent-platform", transport = "Streamable HTTP JSON-RPC", message = "Send MCP JSON-RPC requests to this endpoint with POST. Start with the initialize method.", protocolVersion = ProtocolVersion }));
-        endpoints.MapPost("/mcp", HandleAsync);
+        endpoints.MapGet("/mcp", () => Results.Ok(new { name = "agent-platform", transport = "Streamable HTTP JSON-RPC", message = "Send MCP JSON-RPC requests to this endpoint with POST. Start with the initialize method.", protocolVersion = ProtocolVersion })).RequireAuthorization("platform-mcp");
+        endpoints.MapPost("/mcp", HandleAsync).RequireAuthorization("platform-mcp");
         return endpoints;
     }
 
-    private static async Task<IResult> HandleAsync(HttpContext context, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, CancellationToken ct)
+    private static async Task<IResult> HandleAsync(HttpContext context, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, IAgentRepository agentRepository, CancellationToken ct)
     {
         JsonDocument document;
         try { document = await JsonDocument.ParseAsync(context.Request.Body, cancellationToken: ct); }
@@ -39,8 +41,8 @@ public static class PlatformMcpEndpoint
             {
                 "initialize" => new { protocolVersion = ProtocolVersion, capabilities = new { tools = new { listChanged = false } }, serverInfo = new { name = "agent-platform", version = "1.0.0" } },
                 "ping" => new { },
-                "tools/list" => new { tools = ToolDefinitions },
-                "tools/call" => await HandleToolCallAsync(request, projects, agents, mcpServers, webhooks, ct),
+                "tools/list" => await HandleToolListAsync(context.User, agentRepository, ct),
+                "tools/call" => await HandleToolCallAsync(request, context.User, projects, agents, mcpServers, webhooks, agentRepository, ct),
                 _ => null,
             };
             if (result is null) return RpcError(responseId, -32601, "Method not found.");
@@ -49,28 +51,43 @@ public static class PlatformMcpEndpoint
         }
     }
 
-    private static async Task<object> HandleToolCallAsync(JsonElement request, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, CancellationToken ct)
+    private static async Task<object> HandleToolListAsync(ClaimsPrincipal user, IAgentRepository agentRepository, CancellationToken ct)
+    {
+        var agent = await CallingAgentAsync(user, agentRepository, ct);
+        var grantedNames = agent.McpToolGrants.Select(grant => grant.ToolName).ToHashSet(StringComparer.Ordinal);
+        return new { tools = ToolDefinitions.Where(tool => grantedNames.Contains(tool.Name)).ToArray() };
+    }
+
+    private static async Task<object> HandleToolCallAsync(JsonElement request, ClaimsPrincipal user, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, IAgentRepository agentRepository, CancellationToken ct)
     {
         if (!request.TryGetProperty("params", out var parameters) || parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty("name", out var toolName) || toolName.ValueKind != JsonValueKind.String)
             return ToolResponse(Error("Tool name is required."));
         var arguments = parameters.TryGetProperty("arguments", out var nestedArguments) && nestedArguments.ValueKind == JsonValueKind.Object
             ? nestedArguments
             : parameters;
-        return ToolResponse(await ExecuteToolAsync(toolName.GetString()!, arguments, projects, agents, mcpServers, webhooks, ct));
+        return ToolResponse(await ExecuteToolAsync(toolName.GetString()!, arguments, user, projects, agents, mcpServers, webhooks, agentRepository, ct));
     }
 
     private static object ToolResponse(ToolResult result) => new { content = new[] { new { type = "text", text = JsonSerializer.Serialize(result.Value, JsonOptions) } }, isError = result.IsError };
 
-    private static async Task<ToolResult> ExecuteToolAsync(string toolName, JsonElement p, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, CancellationToken ct)
+    private static async Task<ToolResult> ExecuteToolAsync(string toolName, JsonElement p, ClaimsPrincipal user, ProjectService projects, AgentService agents, McpServerService mcpServers, WebhookService webhooks, IAgentRepository agentRepository, CancellationToken ct)
     {
         try
         {
+            var agent = await CallingAgentAsync(user, agentRepository, ct);
+            if (!agent.McpToolGrants.Any(grant => string.Equals(grant.ToolName, toolName, StringComparison.Ordinal)))
+                return Error("The calling agent is not granted this platform tool.");
+
             switch (toolName)
             {
-                case "list_projects": return Success(await projects.ListAsync(ct));
+                case "list_projects":
+                {
+                    var project = await projects.FindAsync(agent.ProjectId, ct);
+                    return Success(project is null ? Array.Empty<object>() : new object[] { project });
+                }
                 case "get_project_details":
                 {
-                    var projectId = RequiredGuid(p, "projectId");
+                    var projectId = ScopedProjectId(agent, p);
                     var project = await projects.FindAsync(projectId, ct);
                     if (project is null) return NotFound("Project");
                     var agentList = await agents.ListAsync(projectId, ct);
@@ -78,53 +95,69 @@ public static class PlatformMcpEndpoint
                     var webhookList = await webhooks.ListAsync(projectId, ct);
                     return Success(new { project, agents = agentList, mcpServers = serverList, webhooks = webhookList });
                 }
-                case "create_project": return Success(await projects.CreateAsync(RequiredString(p, "name"), ct));
+                case "create_project": return Error("Platform MCP agents are scoped to an existing project and cannot create projects.");
                 case "update_project":
                 {
-                    var item = await projects.UpdateAsync(RequiredGuid(p, "projectId"), RequiredString(p, "name"), ct);
+                    var item = await projects.UpdateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
-                case "delete_project": return await projects.DeleteAsync(RequiredGuid(p, "projectId"), ct) ? Success(new { deleted = true }) : NotFound("Project");
+                case "delete_project": return await projects.DeleteAsync(ScopedProjectId(agent, p), ct) ? Success(new { deleted = true }) : NotFound("Project");
                 case "create_agent":
                 {
-                    var item = await agents.CreateAsync(RequiredGuid(p, "projectId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
                 case "update_agent":
                 {
-                    var item = await agents.UpdateAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
                     return item is null ? NotFound("Agent") : Success(item);
                 }
-                case "delete_agent": return await agents.DeleteAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "agentId"), ct) ? Success(new { deleted = true }) : NotFound("Agent");
+                case "delete_agent": return await agents.DeleteAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), ct) ? Success(new { deleted = true }) : NotFound("Agent");
                 case "create_mcp_server":
                 {
-                    var item = await mcpServers.CreateAsync(RequiredGuid(p, "projectId"), RequiredString(p, "name"), RequiredString(p, "endpoint"), RequiredInt(p, "cacheTtlSeconds"), RequiredSecurity(p), OptionalString(p, "apiKey"), ct);
+                    var item = await mcpServers.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "endpoint"), RequiredInt(p, "cacheTtlSeconds"), RequiredSecurity(p), OptionalString(p, "apiKey"), ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
                 case "update_mcp_server":
                 {
-                    var item = await mcpServers.UpdateAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "serverId"), RequiredString(p, "name"), RequiredString(p, "endpoint"), RequiredInt(p, "cacheTtlSeconds"), RequiredSecurity(p), OptionalString(p, "apiKey"), ct);
+                    var item = await mcpServers.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "serverId"), RequiredString(p, "name"), RequiredString(p, "endpoint"), RequiredInt(p, "cacheTtlSeconds"), RequiredSecurity(p), OptionalString(p, "apiKey"), ct);
                     return item is null ? NotFound("MCP server") : Success(item);
                 }
-                case "delete_mcp_server": return await mcpServers.DeleteAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "serverId"), ct) ? Success(new { deleted = true }) : NotFound("MCP server");
+                case "delete_mcp_server": return await mcpServers.DeleteAsync(ScopedProjectId(agent, p), RequiredGuid(p, "serverId"), ct) ? Success(new { deleted = true }) : NotFound("MCP server");
                 case "create_webhook":
                 {
-                    var item = await webhooks.CreateAsync(RequiredGuid(p, "projectId"), RequiredString(p, "name"), RequiredString(p, "endpointUrl"), RequiredString(p, "secret"), RequiredStringArray(p, "events"), ct);
+                    var item = await webhooks.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "endpointUrl"), RequiredString(p, "secret"), RequiredStringArray(p, "events"), ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
                 case "update_webhook":
                 {
-                    var item = await webhooks.UpdateAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "webhookId"), RequiredString(p, "name"), RequiredString(p, "endpointUrl"), OptionalString(p, "secret"), RequiredStringArray(p, "events"), RequiredBool(p, "enabled"), ct);
+                    var item = await webhooks.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "webhookId"), RequiredString(p, "name"), RequiredString(p, "endpointUrl"), OptionalString(p, "secret"), RequiredStringArray(p, "events"), RequiredBool(p, "enabled"), ct);
                     return item is null ? NotFound("Webhook") : Success(item);
                 }
-                case "delete_webhook": return await webhooks.DeleteAsync(RequiredGuid(p, "projectId"), RequiredGuid(p, "webhookId"), ct) ? Success(new { deleted = true }) : NotFound("Webhook");
+                case "delete_webhook": return await webhooks.DeleteAsync(ScopedProjectId(agent, p), RequiredGuid(p, "webhookId"), ct) ? Success(new { deleted = true }) : NotFound("Webhook");
                 default: return Error("Unknown tool.");
             }
         }
         catch (ArgumentException exception) { return Error(exception.Message); }
+        catch (UnauthorizedAccessException) { return Error("The requested project is outside the calling agent's scope."); }
     }
 
-    private static readonly object[] ToolDefinitions =
+    private static async Task<AgentPlatform.Domain.Agents.AgentDefinition> CallingAgentAsync(ClaimsPrincipal user, IAgentRepository agentRepository, CancellationToken ct)
+    {
+        if (!Guid.TryParse(user.FindFirstValue(PlatformMcpAuthenticationDefaults.AgentIdClaimType), out var agentId) ||
+            !Guid.TryParse(user.FindFirstValue(PlatformMcpAuthenticationDefaults.ProjectIdClaimType), out var projectId))
+            throw new UnauthorizedAccessException();
+        return await agentRepository.FindByIdAsync(projectId, agentId, ct) ?? throw new UnauthorizedAccessException();
+    }
+
+    private static Guid ScopedProjectId(AgentPlatform.Domain.Agents.AgentDefinition agent, JsonElement parameters)
+    {
+        var projectId = RequiredGuid(parameters, "projectId");
+        if (projectId != agent.ProjectId) throw new UnauthorizedAccessException();
+        return projectId;
+    }
+
+    private static readonly ToolDefinition[] ToolDefinitions =
     [
         Tool("list_projects", "List all projects.", new { }),
         Tool("get_project_details", "Get a project and its agents, MCP servers, and webhooks.", new { projectId = "UUID" }, "projectId"),
@@ -142,10 +175,10 @@ public static class PlatformMcpEndpoint
         Tool("delete_webhook", "Delete a project webhook.", new { projectId = "UUID", webhookId = "UUID" }, "projectId", "webhookId"),
     ];
 
-    private static object Tool(string name, string description, object properties, params string[] required)
+    private static ToolDefinition Tool(string name, string description, object properties, params string[] required)
     {
         var schemas = properties.GetType().GetProperties().ToDictionary(property => property.Name, property => PropertySchema((string)property.GetValue(properties)!));
-        return new { name, description, inputSchema = new Dictionary<string, object?> { ["type"] = "object", ["properties"] = schemas, ["required"] = required, ["additionalProperties"] = false } };
+        return new ToolDefinition(name, description, new Dictionary<string, object?> { ["type"] = "object", ["properties"] = schemas, ["required"] = required, ["additionalProperties"] = false });
     }
 
     private static object PropertySchema(string description)
@@ -169,5 +202,6 @@ public static class PlatformMcpEndpoint
     private static ToolResult Error(string message) => new(new { error = message }, true);
     private static ToolResult NotFound(string resource) => Error($"{resource} was not found.");
     private static IResult RpcError(JsonElement? id, int code, string message) => Results.Json(new { jsonrpc = "2.0", id, error = new { code, message } }, statusCode: StatusCodes.Status200OK);
+    private sealed record ToolDefinition(string Name, string Description, object InputSchema);
     private sealed record ToolResult(object? Value, bool IsError);
 }

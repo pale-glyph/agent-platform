@@ -11,6 +11,7 @@ using AgentPlatform.Api.Mcp;
 using AgentPlatform.Infrastructure;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -41,8 +42,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.Authority = clerkIssuer;
         options.TokenValidationParameters.ValidateAudience = false;
-    });
-builder.Services.AddAuthorization();
+    })
+    .AddScheme<AuthenticationSchemeOptions, PlatformMcpAuthenticationHandler>(PlatformMcpAuthenticationDefaults.Scheme, _ => { });
+builder.Services.AddAuthorization(options => options.AddPolicy("platform-mcp", policy =>
+{
+    policy.AddAuthenticationSchemes(PlatformMcpAuthenticationDefaults.Scheme);
+    policy.RequireAuthenticatedUser();
+}));
 
 var app = builder.Build();
 
