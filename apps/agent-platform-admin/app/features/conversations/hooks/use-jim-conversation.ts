@@ -102,8 +102,10 @@ export function useJimConversation({
   }, [refreshEntries]);
 
   useEffect(() => {
-    if (!isActive) return;
-    const stream = new EventSource("/api/agent-events");
+    if (!isActive || !projectId) return;
+    const parameters = new URLSearchParams({ projectId });
+    if (activeThreadId) parameters.set("threadId", activeThreadId);
+    const stream = new EventSource(`/api/agent-events?${parameters}`);
     const refresh = (event: MessageEvent<string>) => {
       const webhook = JSON.parse(event.data) as {
         projectId: string;

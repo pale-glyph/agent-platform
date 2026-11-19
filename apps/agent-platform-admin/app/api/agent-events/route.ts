@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { auth } from "@clerk/nextjs/server";
+import { authenticatedFetch } from "@/app/api/forward";
 import { publish, subscribe, type AgentWebhookEvent } from "./event-broker";
 
 export const runtime = "nodejs";
@@ -8,16 +10,36 @@ export const dynamic = "force-dynamic";
 const agentEventTypes = new Set(["agent.message", "agent.tool_call"]);
 
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ title: "An authenticated session is required." }, { status: 401 });
+
+  const projectId = request.nextUrl.searchParams.get("projectId");
+  const threadId = request.nextUrl.searchParams.get("threadId");
+  if (!isGuid(projectId) || (threadId !== null && !isGuid(threadId)))
+    return NextResponse.json({ title: "A valid projectId and optional threadId are required." }, { status: 400 });
+
+  const apiUrl = process.env.API_INTERNAL_URL;
+  if (!apiUrl) return NextResponse.json({ title: "The API service is not configured." }, { status: 503 });
+  try {
+    const project = await authenticatedFetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}`, { cache: "no-store" });
+    if (project.status === 404) return NextResponse.json({ title: "Project not found." }, { status: 404 });
+    if (!project.ok) return NextResponse.json({ title: "The API service is unavailable." }, { status: 503 });
+  } catch {
+    return NextResponse.json({ title: "The API service is unavailable." }, { status: 503 });
+  }
+
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | undefined;
   let heartbeat: ReturnType<typeof setInterval> | undefined;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      const send = (event: AgentWebhookEvent) =>
+      const send = (event: AgentWebhookEvent) => {
+        if (event.projectId !== projectId || (threadId && event.data.threadId !== threadId)) return;
         controller.enqueue(
           encoder.encode(`id: ${event.eventId}\nevent: ${event.eventType}\ndata: ${JSON.stringify(event)}\n\n`),
         );
+      };
       controller.enqueue(encoder.encode(": connected\n\n"));
       unsubscribe = subscribe(send);
       heartbeat = setInterval(() => controller.enqueue(encoder.encode(": heartbeat\n\n")), 15_000);
@@ -64,4 +86,8 @@ export async function POST(request: NextRequest) {
 
   publish(event);
   return NextResponse.json({ received: true });
+}
+
+function isGuid(value: string | null): value is string {
+  return value !== null && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
