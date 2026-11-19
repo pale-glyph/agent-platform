@@ -15,6 +15,5 @@ export function AppSidebar() {
       <div><p className="nav-label" id="project-nav-title">Projects</p><button className="small-add" type="button" onClick={openProjectForm} aria-label="Create project">+</button></div>
       {isLoadingProjects ? <p className="nav-loading">Loading…</p> : projects.map((project) => <button key={project.id} className={project.id === selectedProjectId ? "project-nav-item active" : "project-nav-item"} onClick={() => selectProject(project.id)}><span>{project.name.slice(0, 1).toUpperCase()}</span><strong>{project.name}</strong></button>)}
     </section>}
-    <div className="sidebar-footer"><span className="avatar">OP</span><span className="profile-copy"><strong>Operator</strong><small>Administrator</small></span></div>
   </aside>;
 }
