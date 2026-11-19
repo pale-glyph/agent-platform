@@ -153,6 +153,8 @@ cp example.env .env
 
 Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_JWT_ISSUER` in `.env` for one Clerk instance. The issuer is the instance URL (for example, `https://example.clerk.accounts.dev`). The administration UI forwards Clerk session tokens to the control-plane API, where they are validated and used to create/update durable account records. Never commit the secret key.
 
+The control plane is deny-by-default. Set `ADMINISTRATION__BOOTSTRAP_ADMIN_CLERK_USER_IDS` to one or more comma-separated Clerk user IDs before the first administrator signs in. Bootstrap identities are persisted as administrators; administrators may then list accounts and grant or revoke administrator status through `PUT /api/accounts/{clerkUserId}/administrator` with `{ "isAdmin": true | false }`. All non-administrator accounts receive `403` from control-plane endpoints.
+
 To enable the dedicated administration chat, create a normal project agent named Jim, grant it the required platform MCP tools, create an API key for it in **Agents → API keys**, then set its UUID as `JIM_AGENT_ID` and the generated key as `JIM_AGENT_API_KEY` in `.env`. The API key is server-only and must not use a `NEXT_PUBLIC_` prefix. Rebuild the administration image after changing either value.
 
 Build the API, worker, and administration UI images, then start the complete local stack:

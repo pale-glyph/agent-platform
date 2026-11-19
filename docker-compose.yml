@@ -10,6 +10,7 @@ services:
       Nats__Url: ${NATS_URL}
       Nats__StreamName: ${NATS_STREAM_NAME}
       Clerk__Issuer: ${CLERK_JWT_ISSUER}
+      Administration__BootstrapAdminClerkUserIds: ${ADMINISTRATION__BOOTSTRAP_ADMIN_CLERK_USER_IDS:-}
       OutboundHttp__AllowedLlmHosts: ${OUTBOUND_HTTP__ALLOWED_LLM_HOSTS:-}
       OutboundHttp__AllowedMcpHosts: ${OUTBOUND_HTTP__ALLOWED_MCP_HOSTS:-}
       OutboundHttp__AllowedWebhookHosts: ${OUTBOUND_HTTP__ALLOWED_WEBHOOK_HOSTS:-}

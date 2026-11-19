@@ -22,6 +22,7 @@ partial class PlatformDbContextModelSnapshot : ModelSnapshot
             item.Property<string>("ClerkUserId").IsRequired().HasMaxLength(255).HasColumnType("character varying(255)").HasColumnName("clerk_user_id");
             item.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone").HasColumnName("created_at");
             item.Property<DateTimeOffset>("LastSeenAt").HasColumnType("timestamp with time zone").HasColumnName("last_seen_at");
+            item.Property<bool>("IsAdmin").HasColumnType("boolean").HasColumnName("is_admin");
             item.HasKey("Id");
             item.HasIndex("ClerkUserId").IsUnique();
             item.ToTable("accounts");

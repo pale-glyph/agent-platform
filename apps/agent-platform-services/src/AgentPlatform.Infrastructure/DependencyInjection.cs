@@ -5,6 +5,7 @@ using AgentPlatform.Infrastructure.Runtime;
 using AgentPlatform.Application.Runtime;
 using AgentPlatform.Infrastructure.Webhooks;
 using AgentPlatform.Infrastructure.Networking;
+using AgentPlatform.Infrastructure.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -22,6 +23,7 @@ public static class DependencyInjection
 
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(dataSourceConnectionString));
         services.AddSingleton<IOutboundUrlPolicy, OutboundUrlPolicy>();
+        services.AddSingleton<IAdministratorBootstrap, ConfigurationAdministratorBootstrap>();
         services.AddScoped<IAccountRepository, EfAccountRepository>();
         services.AddScoped<IProjectRepository, EfProjectRepository>();
         services.AddScoped<IAgentRepository, EfAgentRepository>();

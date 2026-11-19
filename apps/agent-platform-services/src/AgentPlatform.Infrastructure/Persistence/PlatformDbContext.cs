@@ -34,6 +34,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         account.Property(item => item.ClerkUserId).HasColumnName("clerk_user_id").HasMaxLength(Account.MaximumClerkUserIdLength).IsRequired();
         account.Property(item => item.CreatedAt).HasColumnName("created_at").IsRequired();
         account.Property(item => item.LastSeenAt).HasColumnName("last_seen_at").IsRequired();
+        account.Property(item => item.IsAdmin).HasColumnName("is_admin").IsRequired();
         account.HasIndex(item => item.ClerkUserId).IsUnique();
 
         var usage = modelBuilder.Entity<UsageMetricBucket>();
