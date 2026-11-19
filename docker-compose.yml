@@ -26,8 +26,6 @@ services:
           # Existing built-in MCP configurations use this internal hostname.
           - api
       mcp: {}
-    ports:
-      - "${FRONTEND_API_PORT:-8080}:8080"
     restart: unless-stopped
 
   agent-api:
@@ -50,8 +48,6 @@ services:
         condition: service_healthy
       nats:
         condition: service_healthy
-    ports:
-      - "${AGENT_API_PORT:-8081}:8081"
     restart: unless-stopped
     networks:
     - default
@@ -95,12 +91,21 @@ services:
       AGENT_EVENTS_WEBHOOK_SECRET: ${AGENT_EVENTS_WEBHOOK_SECRET:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-    ports:
-      - "${ADMIN_PORT}:3000"
     depends_on:
       - frontend-api
       - agent-api
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.agent-platform-admin.rule=Host(`agent-platform.${DNS_SUFFIX}`)"
+      - "traefik.http.routers.agent-platform-admin.entrypoints=https"
+      - "traefik.http.routers.agent-platform-admin.tls=true"
+      - "traefik.http.routers.agent-platform-admin.tls.certresolver=zerossl"
+      - "traefik.http.services.agent-platform-admin.loadbalancer.server.port=3000"
+    networks:
+      - default
+      - traefik
 
   postgres:
     image: postgres:17-alpine
@@ -136,6 +141,8 @@ volumes:
   nats-data:
 
 networks:
+  traefik:
+    external: true
   mcp:
     name: ${MCP_NETWORK_NAME:-agent-platform-mcp}
     external: true

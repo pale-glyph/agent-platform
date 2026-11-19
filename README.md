@@ -164,7 +164,12 @@ Build the API, worker, and administration UI images, then start the complete loc
 docker compose ps
 ```
 
-The configured host ports are defined in `.env`; the template exposes the administration UI at `http://localhost:3010` and PostgreSQL at `localhost:5420`.
+The administration UI is exposed through the external Traefik gateway at
+`https://agent-platform.${DNS_SUFFIX}`.
+Set `DNS_SUFFIX` in the environment used to run Compose. PostgreSQL remains
+published on the host at `localhost:${POSTGRES_PORT}` (5420 in the provided
+`.env`); the application APIs and administration UI are available only on the
+internal Compose networks.
 
 ### External MCP servers
 
@@ -192,7 +197,11 @@ npm install
 npm run dev
 ```
 
-Docker Compose publishes the frontend API on `FRONTEND_API_PORT` (8080 by default) and the application-facing thread API on `AGENT_API_PORT` (8081 by default). The browser accesses projects through same-origin Next.js route handlers; the administration container forwards control-plane calls to the frontend API and thread interactions to the thread API over the internal Compose network. For host-based backend development, provide equivalent environment variables through your preferred local-secret mechanism.
+The browser accesses projects through same-origin Next.js route handlers; the
+administration container forwards control-plane calls to the frontend API and
+thread interactions to the thread API over the internal Compose network. For
+host-based backend development, provide equivalent environment variables through
+your preferred local-secret mechanism.
 
 Persistent local data is held in named Docker volumes. Stop the stack with `docker compose down`; include `--volumes` only when you intentionally want to discard local data.
 
