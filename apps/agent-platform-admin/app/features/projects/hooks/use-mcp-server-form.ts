@@ -101,7 +101,9 @@ export function useMcpServerForm({
     setToolsError(null);
     setIsLoadingTools(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/mcp-servers/${server.id}`);
+      const endpoint = new URL(server.endpoint);
+      const isPlatformMcp = endpoint.hostname === "api" && endpoint.port === "8080" && endpoint.pathname.replace(/\/$/, "") === "/mcp";
+      const response = await fetch(isPlatformMcp ? "/api/platform-mcp/tools" : `/api/projects/${projectId}/mcp-servers/${server.id}`);
       if (!response.ok) throw new Error(await readError(response));
       const result = (await response.json()) as McpTool[] | { tools?: McpTool[] };
       const discoveredTools = Array.isArray(result) ? result : result.tools;

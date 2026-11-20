@@ -38,9 +38,9 @@ export function useAgentForm({
     try {
       const entries = await Promise.all(
         mcpServers.map(async (server) => {
-          const response = await fetch(
-            `/api/projects/${projectId}/mcp-servers/${server.id}`,
-          );
+          const endpoint = new URL(server.endpoint);
+          const isPlatformMcp = endpoint.hostname === "api" && endpoint.port === "8080" && endpoint.pathname.replace(/\/$/, "") === "/mcp";
+          const response = await fetch(isPlatformMcp ? "/api/platform-mcp/tools" : `/api/projects/${projectId}/mcp-servers/${server.id}`);
           if (!response.ok) return [server.id, []] as const;
           const result = (await response.json()) as McpTool[] | { tools?: McpTool[] };
           return [server.id, Array.isArray(result) ? result : (result.tools ?? [])] as const;
