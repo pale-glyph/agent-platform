@@ -21,7 +21,9 @@ export function useProjectResources(
       if (!response.ok) throw new Error("Agents could not be loaded.");
       setAgents((await response.json()) as Agent[]);
     } catch (error) {
-      reportMessage(error instanceof Error ? error.message : "Agents could not be loaded.");
+      reportMessage(
+        error instanceof Error ? error.message : "Agents could not be loaded.",
+      );
     }
   }, [projectId, reportMessage]);
 
@@ -36,7 +38,9 @@ export function useProjectResources(
       setMcpServers((await response.json()) as McpServer[]);
     } catch (error) {
       reportMessage(
-        error instanceof Error ? error.message : "MCP servers could not be loaded.",
+        error instanceof Error
+          ? error.message
+          : "MCP servers could not be loaded.",
       );
     }
   }, [projectId, reportMessage]);

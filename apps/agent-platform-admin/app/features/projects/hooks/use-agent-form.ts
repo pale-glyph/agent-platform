@@ -5,7 +5,8 @@ import type { FormEvent } from "react";
 import { readError } from "../../../services/http";
 import type { Agent, KnowledgeBase, McpServer, McpTool } from "../../../types";
 
-const toolKey = (serverId: string, toolName: string) => `${serverId}:${toolName}`;
+const toolKey = (serverId: string, toolName: string) =>
+  `${serverId}:${toolName}`;
 
 export function useAgentForm({
   projectId,
@@ -27,9 +28,13 @@ export function useAgentForm({
   const [description, setDescription] = useState("");
   const [prompt, setPrompt] = useState("");
   const [llmConfigurationId, setLlmConfigurationId] = useState("");
-  const [toolsByServer, setToolsByServer] = useState<Record<string, McpTool[]>>({});
+  const [toolsByServer, setToolsByServer] = useState<Record<string, McpTool[]>>(
+    {},
+  );
   const [selectedToolKeys, setSelectedToolKeys] = useState<string[]>([]);
-  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
+  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<
+    string[]
+  >([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
   const loadTools = useCallback(async () => {
@@ -39,11 +44,22 @@ export function useAgentForm({
       const entries = await Promise.all(
         mcpServers.map(async (server) => {
           const endpoint = new URL(server.endpoint);
-          const isPlatformMcp = endpoint.hostname === "api" && endpoint.port === "8080" && endpoint.pathname.replace(/\/$/, "") === "/mcp";
-          const response = await fetch(isPlatformMcp ? "/api/platform-mcp/tools" : `/api/projects/${projectId}/mcp-servers/${server.id}`);
+          const isPlatformMcp =
+            endpoint.hostname === "api" &&
+            endpoint.port === "8080" &&
+            endpoint.pathname.replace(/\/$/, "") === "/mcp";
+          const response = await fetch(
+            isPlatformMcp
+              ? "/api/platform-mcp/tools"
+              : `/api/projects/${projectId}/mcp-servers/${server.id}`,
+          );
           if (!response.ok) return [server.id, []] as const;
-          const result = (await response.json()) as McpTool[] | { tools?: McpTool[] };
-          return [server.id, Array.isArray(result) ? result : (result.tools ?? [])] as const;
+          const result = (await response.json()) as
+            McpTool[] | { tools?: McpTool[] };
+          return [
+            server.id,
+            Array.isArray(result) ? result : (result.tools ?? []),
+          ] as const;
         }),
       );
       setToolsByServer(Object.fromEntries(entries));
@@ -62,7 +78,9 @@ export function useAgentForm({
       setPrompt(agent?.systemPrompt ?? "");
       setLlmConfigurationId(agent?.llmConfigurationId ?? "");
       setSelectedToolKeys(
-        agent?.mcpToolGrants.map((grant) => toolKey(grant.mcpServerId, grant.toolName)) ?? [],
+        agent?.mcpToolGrants.map((grant) =>
+          toolKey(grant.mcpServerId, grant.toolName),
+        ) ?? [],
       );
       setSelectedKnowledgeBaseIds(agent?.knowledgeBaseIds ?? []);
       setToolsByServer({});
@@ -82,7 +100,10 @@ export function useAgentForm({
       try {
         const mcpToolGrants = selectedToolKeys.map((key) => {
           const separator = key.indexOf(":");
-          return { mcpServerId: key.slice(0, separator), toolName: key.slice(separator + 1) };
+          return {
+            mcpServerId: key.slice(0, separator),
+            toolName: key.slice(separator + 1),
+          };
         });
         const response = await fetch(
           editingAgent
@@ -105,18 +126,40 @@ export function useAgentForm({
         setIsFormOpen(false);
         await onSaved();
       } catch (error) {
-        reportMessage(error instanceof Error ? error.message : "The agent could not be saved.");
+        reportMessage(
+          error instanceof Error
+            ? error.message
+            : "The agent could not be saved.",
+        );
       } finally {
         setIsSaving(false);
       }
     },
-    [description, editingAgent, llmConfigurationId, name, onSaved, projectId, prompt, reportMessage, selectedToolKeys, selectedKnowledgeBaseIds],
+    [
+      description,
+      editingAgent,
+      llmConfigurationId,
+      name,
+      onSaved,
+      projectId,
+      prompt,
+      reportMessage,
+      selectedToolKeys,
+      selectedKnowledgeBaseIds,
+    ],
   );
 
   const remove = useCallback(
     async (agent: Agent) => {
-      if (!projectId || !window.confirm(`Delete “${agent.name}”? This cannot be undone.`)) return;
-      const response = await fetch(`/api/projects/${projectId}/agents/${agent.id}`, { method: "DELETE" });
+      if (
+        !projectId ||
+        !window.confirm(`Delete “${agent.name}”? This cannot be undone.`)
+      )
+        return;
+      const response = await fetch(
+        `/api/projects/${projectId}/agents/${agent.id}`,
+        { method: "DELETE" },
+      );
       if (!response.ok) {
         reportMessage("The agent could not be deleted.");
         return;
@@ -127,9 +170,27 @@ export function useAgentForm({
   );
 
   return {
-    editingAgent, isFormOpen, isSaving, name, description, prompt, llmConfigurationId,
-    toolsByServer, selectedToolKeys, selectedKnowledgeBaseIds, knowledgeBases, isLoadingTools,
-    setName, setDescription, setPrompt, setLlmConfigurationId, setSelectedToolKeys, setSelectedKnowledgeBaseIds,
-    openForm, closeForm: () => setIsFormOpen(false), save, remove,
+    editingAgent,
+    isFormOpen,
+    isSaving,
+    name,
+    description,
+    prompt,
+    llmConfigurationId,
+    toolsByServer,
+    selectedToolKeys,
+    selectedKnowledgeBaseIds,
+    knowledgeBases,
+    isLoadingTools,
+    setName,
+    setDescription,
+    setPrompt,
+    setLlmConfigurationId,
+    setSelectedToolKeys,
+    setSelectedKnowledgeBaseIds,
+    openForm,
+    closeForm: () => setIsFormOpen(false),
+    save,
+    remove,
   };
 }

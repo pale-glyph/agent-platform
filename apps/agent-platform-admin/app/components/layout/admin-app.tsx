@@ -63,7 +63,10 @@ export function AdminApp() {
             ) : (
               <div className="empty-state workspace-empty">
                 <strong>Select a project</strong>
-                <span>Choose a project from the sidebar or create a new one to begin.</span>
+                <span>
+                  Choose a project from the sidebar or create a new one to
+                  begin.
+                </span>
               </div>
             ))}
           {workspace.page === "chat" && (

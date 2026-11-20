@@ -8,16 +8,23 @@ async function forward(request: NextRequest, method: "GET" | "POST") {
     const response = await authenticatedFetch(`${apiUrl}/api/projects/`, {
       method,
       body: method === "POST" ? await request.text() : undefined,
-      headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
+      headers:
+        method === "POST" ? { "Content-Type": "application/json" } : undefined,
       cache: "no-store",
     });
 
     return new NextResponse(response.body, {
       status: response.status,
-      headers: { "Content-Type": response.headers.get("Content-Type") ?? "application/json" },
+      headers: {
+        "Content-Type":
+          response.headers.get("Content-Type") ?? "application/json",
+      },
     });
   } catch {
-    return NextResponse.json({ title: "The API service is unavailable." }, { status: 503 });
+    return NextResponse.json(
+      { title: "The API service is unavailable." },
+      { status: 503 },
+    );
   }
 }
 

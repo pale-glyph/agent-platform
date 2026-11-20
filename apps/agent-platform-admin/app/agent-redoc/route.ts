@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const agentApiUrl = process.env.THREAD_API_INTERNAL_URL ?? "http://localhost:8081";
+const agentApiUrl =
+  process.env.THREAD_API_INTERNAL_URL ?? "http://localhost:8081";
 
 export async function GET() {
   try {
@@ -13,10 +14,13 @@ export async function GET() {
     return new NextResponse(document, {
       status: response.status,
       headers: {
-        "Content-Type": response.headers.get("Content-Type") ?? "text/html; charset=utf-8",
+        "Content-Type":
+          response.headers.get("Content-Type") ?? "text/html; charset=utf-8",
       },
     });
   } catch {
-    return new NextResponse("The Agent API service is unavailable.", { status: 503 });
+    return new NextResponse("The Agent API service is unavailable.", {
+      status: 503,
+    });
   }
 }
