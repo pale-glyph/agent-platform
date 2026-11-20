@@ -3,6 +3,9 @@ using System.Text;
 using AgentPlatform.Domain.KnowledgeBases;
 using AgentPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPlatform.EmbeddingWorker;
 
