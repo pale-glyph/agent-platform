@@ -169,6 +169,7 @@ projects.MapGet("/{projectId:guid}/usage", async (Guid projectId, DateTimeOffset
     return metrics is null ? Results.NotFound() : Results.Ok(metrics.Select(UsageMetricBucketSummary.From));
 });
 
+
 projects.MapGet("/{projectId:guid}/agent-threads/", async (Guid projectId, ProjectService projectsService, AgentThreadService threadsService, CancellationToken ct) =>
 {
     if (await projectsService.FindAsync(projectId, ct) is null) return Results.NotFound();
@@ -329,6 +330,7 @@ webhooks.MapDelete("/deliveries/{deliveryId:guid}", async (Guid projectId, Guid 
 });
 
 app.Run();
+
 
 public sealed record ProjectRequest(string? Name);
 public sealed record AgentRequest(string? Name, string? Description, string? SystemPrompt, Guid? LlmConfigurationId, McpToolGrantRequest[]? McpToolGrants);

@@ -53,6 +53,29 @@ services:
     - default
     - mcp
 
+  knowledge-base-api:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: knowledge-base-api
+    environment:
+      ASPNETCORE_URLS: http://+:8082
+      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      Clerk__Issuer: ${CLERK_JWT_ISSUER}
+      Nats__Url: ${NATS_URL}
+      Nats__StreamName: ${NATS_STREAM_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - knowledge-base-api
+      mcp: {}
+    restart: unless-stopped
+
   worker:
     build:
       context: .
@@ -74,6 +97,22 @@ services:
     networks:
       - default
       - mcp
+    restart: unless-stopped
+
+  embedding-worker:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: embedding-worker
+    environment:
+      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      Nats__Url: ${NATS_URL}
+      Nats__StreamName: ${NATS_STREAM_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     restart: unless-stopped
 
   admin:
@@ -108,7 +147,7 @@ services:
       - traefik
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17-trixie
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
