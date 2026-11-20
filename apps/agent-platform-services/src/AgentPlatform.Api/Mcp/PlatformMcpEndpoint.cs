@@ -104,12 +104,12 @@ public static class PlatformMcpEndpoint
                 case "delete_project": return await projects.DeleteAsync(ScopedProjectId(agent, p), ct) ? Success(new { deleted = true }) : NotFound("Project");
                 case "create_agent":
                 {
-                    var item = await agents.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), [], ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
                 case "update_agent":
                 {
-                    var item = await agents.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), [], ct);
                     return item is null ? NotFound("Agent") : Success(item);
                 }
                 case "delete_agent": return await agents.DeleteAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), ct) ? Success(new { deleted = true }) : NotFound("Agent");

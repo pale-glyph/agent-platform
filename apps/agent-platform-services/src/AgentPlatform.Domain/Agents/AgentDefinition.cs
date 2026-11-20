@@ -26,6 +26,7 @@ public sealed class AgentDefinition
     public string SystemPrompt { get; private set; }
     public Guid? LlmConfigurationId { get; private set; }
     public List<AgentMcpToolGrant> McpToolGrants { get; private set; } = [];
+    public List<AgentKnowledgeBaseGrant> KnowledgeBaseGrants { get; private set; } = [];
 
     public DateTimeOffset CreatedAt { get; }
 
@@ -44,6 +45,8 @@ public sealed class AgentDefinition
             .Select(grant => new AgentMcpToolGrant(Id, grant.McpServerId, grant.ToolName))
             .ToList();
     }
+
+    public void ReplaceKnowledgeBaseGrants(IEnumerable<Guid> knowledgeBaseIds) => KnowledgeBaseGrants = knowledgeBaseIds.Distinct().Select(id => new AgentKnowledgeBaseGrant(Id, id)).ToList();
 
     private static string Normalize(string value, int maximumLength, string fieldName)
     {

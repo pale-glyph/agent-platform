@@ -17,6 +17,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AgentDefinition> Agents => Set<AgentDefinition>();
     public DbSet<AgentApiKey> AgentApiKeys => Set<AgentApiKey>();
     public DbSet<AgentMcpToolGrant> AgentMcpToolGrants => Set<AgentMcpToolGrant>();
+    public DbSet<AgentKnowledgeBaseGrant> AgentKnowledgeBaseGrants => Set<AgentKnowledgeBaseGrant>();
     public DbSet<LlmConfiguration> LlmConfigurations => Set<LlmConfiguration>();
     public DbSet<McpServer> McpServers => Set<McpServer>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
@@ -144,6 +145,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         grant.Property(item => item.ToolName).HasColumnName("tool_name").HasMaxLength(AgentMcpToolGrant.MaximumToolNameLength);
         grant.HasOne<AgentDefinition>().WithMany(item => item.McpToolGrants).HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
         grant.HasOne<McpServer>().WithMany().HasForeignKey(item => item.McpServerId).OnDelete(DeleteBehavior.Cascade);
+
+        var knowledgeBaseGrant = modelBuilder.Entity<AgentKnowledgeBaseGrant>();
+        knowledgeBaseGrant.ToTable("agent_knowledge_base_grants");
+        knowledgeBaseGrant.HasKey(item => new { item.AgentId, item.KnowledgeBaseId });
+        knowledgeBaseGrant.Property(item => item.AgentId).HasColumnName("agent_id");
+        knowledgeBaseGrant.Property(item => item.KnowledgeBaseId).HasColumnName("knowledge_base_id");
+        knowledgeBaseGrant.HasOne<AgentDefinition>().WithMany(item => item.KnowledgeBaseGrants).HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
+        knowledgeBaseGrant.HasOne<KnowledgeBase>().WithMany().HasForeignKey(item => item.KnowledgeBaseId).OnDelete(DeleteBehavior.Cascade);
 
         var llm = modelBuilder.Entity<LlmConfiguration>();
         llm.ToTable("llm_configurations"); llm.HasKey(item => item.Id);

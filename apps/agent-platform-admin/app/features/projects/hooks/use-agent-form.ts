@@ -3,18 +3,20 @@
 import { useCallback, useState } from "react";
 import type { FormEvent } from "react";
 import { readError } from "../../../services/http";
-import type { Agent, McpServer, McpTool } from "../../../types";
+import type { Agent, KnowledgeBase, McpServer, McpTool } from "../../../types";
 
 const toolKey = (serverId: string, toolName: string) => `${serverId}:${toolName}`;
 
 export function useAgentForm({
   projectId,
   mcpServers,
+  knowledgeBases,
   onSaved,
   reportMessage,
 }: {
   projectId: string;
   mcpServers: McpServer[];
+  knowledgeBases: KnowledgeBase[];
   onSaved: () => Promise<void>;
   reportMessage: (message: string | null) => void;
 }) {
@@ -27,6 +29,7 @@ export function useAgentForm({
   const [llmConfigurationId, setLlmConfigurationId] = useState("");
   const [toolsByServer, setToolsByServer] = useState<Record<string, McpTool[]>>({});
   const [selectedToolKeys, setSelectedToolKeys] = useState<string[]>([]);
+  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
   const loadTools = useCallback(async () => {
@@ -61,6 +64,7 @@ export function useAgentForm({
       setSelectedToolKeys(
         agent?.mcpToolGrants.map((grant) => toolKey(grant.mcpServerId, grant.toolName)) ?? [],
       );
+      setSelectedKnowledgeBaseIds(agent?.knowledgeBaseIds ?? []);
       setToolsByServer({});
       setIsFormOpen(true);
       reportMessage(null);
@@ -93,6 +97,7 @@ export function useAgentForm({
               systemPrompt: prompt,
               llmConfigurationId: llmConfigurationId || null,
               mcpToolGrants,
+              knowledgeBaseIds: selectedKnowledgeBaseIds,
             }),
           },
         );
@@ -105,7 +110,7 @@ export function useAgentForm({
         setIsSaving(false);
       }
     },
-    [description, editingAgent, llmConfigurationId, name, onSaved, projectId, prompt, reportMessage, selectedToolKeys],
+    [description, editingAgent, llmConfigurationId, name, onSaved, projectId, prompt, reportMessage, selectedToolKeys, selectedKnowledgeBaseIds],
   );
 
   const remove = useCallback(
@@ -123,8 +128,8 @@ export function useAgentForm({
 
   return {
     editingAgent, isFormOpen, isSaving, name, description, prompt, llmConfigurationId,
-    toolsByServer, selectedToolKeys, isLoadingTools,
-    setName, setDescription, setPrompt, setLlmConfigurationId, setSelectedToolKeys,
+    toolsByServer, selectedToolKeys, selectedKnowledgeBaseIds, knowledgeBases, isLoadingTools,
+    setName, setDescription, setPrompt, setLlmConfigurationId, setSelectedToolKeys, setSelectedKnowledgeBaseIds,
     openForm, closeForm: () => setIsFormOpen(false), save, remove,
   };
 }

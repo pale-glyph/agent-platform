@@ -125,6 +125,7 @@ services:
     environment:
       API_INTERNAL_URL: http://frontend-api:8080
       THREAD_API_INTERNAL_URL: http://agent-api:8081
+      KNOWLEDGE_BASE_API_INTERNAL_URL: http://knowledge-base-api:8082
       NEXT_PUBLIC_JIM_AGENT_ID: ${JIM_AGENT_ID:-}
       JIM_AGENT_API_KEY: ${JIM_AGENT_API_KEY:-}
       AGENT_EVENTS_WEBHOOK_SECRET: ${AGENT_EVENTS_WEBHOOK_SECRET:-}

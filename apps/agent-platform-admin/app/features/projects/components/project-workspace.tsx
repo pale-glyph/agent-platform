@@ -15,6 +15,7 @@ import { ProjectOverview } from "./project-overview";
 import { ProjectWorkspacePage } from "./project-workspace-page";
 import { ServersTab } from "./servers-tab";
 import { WebhooksTab } from "./webhooks-tab";
+import { KnowledgeBasesTab } from "./knowledge-bases-tab";
 
 type ProjectWorkspaceProps = {
   project: Project;
@@ -29,9 +30,11 @@ export function ProjectWorkspace({
 }: ProjectWorkspaceProps) {
   const { tab, reportMessage } = useWorkspaceNavigation();
   const [apiKeysForAgent, setApiKeysForAgent] = useState<Agent | null>(null);
+  const [knowledgeBases, setKnowledgeBases] = useState<import("../../../types").KnowledgeBase[]>([]);
   const agentForm = useAgentForm({
     projectId: project.id,
     mcpServers: resources.mcpServers,
+    knowledgeBases,
     onSaved: resources.refreshAgents,
     reportMessage,
   });
@@ -66,6 +69,8 @@ export function ProjectWorkspace({
             llmConfigurationId={agentForm.llmConfigurationId}
             toolsByServer={agentForm.toolsByServer}
             selectedToolKeys={agentForm.selectedToolKeys}
+            knowledgeBases={agentForm.knowledgeBases}
+            selectedKnowledgeBaseIds={agentForm.selectedKnowledgeBaseIds}
             isLoadingTools={agentForm.isLoadingTools}
             onOpenForm={agentForm.openForm}
             onSubmit={agentForm.save}
@@ -77,6 +82,7 @@ export function ProjectWorkspace({
             onPromptChange={agentForm.setPrompt}
             onLlmConfigurationChange={agentForm.setLlmConfigurationId}
             onSelectedToolKeysChange={agentForm.setSelectedToolKeys}
+            onSelectedKnowledgeBaseIdsChange={agentForm.setSelectedKnowledgeBaseIds}
           />
         )}
         {tab === "servers" && (
@@ -110,6 +116,7 @@ export function ProjectWorkspace({
             onMessage={reportMessage}
           />
         )}
+        {tab === "knowledgeBases" && <KnowledgeBasesTab projectId={project.id} onChanged={setKnowledgeBases} />}
         {tab === "threads" && (
           <AgentThreadsPanel
             threads={resources.agentThreads}
