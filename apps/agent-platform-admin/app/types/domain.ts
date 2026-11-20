@@ -14,7 +14,12 @@ export type Agent = {
   createdAt: string;
 };
 
-export type AgentApiKey = { id: string; name: string; keyPrefix: string; createdAt: string };
+export type AgentApiKey = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+};
 export type CreatedAgentApiKey = AgentApiKey & { secret: string };
 
 export type LlmConfiguration = {
@@ -112,6 +117,15 @@ export type UsageBucket = {
   totalTokens: number;
 };
 
-export type KnowledgeBase = { id: string; projectId: string; name: string; description: string | null; status: string; createdAt: string; updatedAt: string };
-export type ProjectTab = "overview" | "agents" | "servers" | "knowledgeBases" | "webhooks" | "threads";
+export type KnowledgeBase = {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type ProjectTab =
+  "overview" | "agents" | "servers" | "knowledgeBases" | "webhooks" | "threads";
 export type AdminPage = "projects" | "chat" | "llm" | "usage";

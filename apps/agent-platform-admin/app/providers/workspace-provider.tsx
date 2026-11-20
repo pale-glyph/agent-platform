@@ -22,7 +22,9 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   }, []);
   const { projects, isLoading, create } = useProjects(reportMessage);
   const activeProjectId = selectedProjectId || projects[0]?.id || "";
-  const selectedProject = projects.find((project) => project.id === activeProjectId);
+  const selectedProject = projects.find(
+    (project) => project.id === activeProjectId,
+  );
 
   const selectProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
@@ -50,7 +52,9 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         setIsProjectFormOpen(false);
       } catch (error) {
         setMessage(
-          error instanceof Error ? error.message : "The project could not be created.",
+          error instanceof Error
+            ? error.message
+            : "The project could not be created.",
         );
       } finally {
         setIsSavingProject(false);
