@@ -4,9 +4,9 @@ using AgentPlatform.Domain.Agents;
 namespace AgentPlatform.Application.Agents;
 
 public sealed record McpToolGrantSummary(Guid McpServerId, string ToolName);
-public sealed record AgentSummary(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, Guid? LlmConfigurationId, IReadOnlyList<McpToolGrantSummary> McpToolGrants, DateTimeOffset CreatedAt);
+public sealed record AgentSummary(Guid Id, Guid ProjectId, string Name, string Description, string SystemPrompt, Guid? LlmConfigurationId, IReadOnlyList<McpToolGrantSummary> McpToolGrants, IReadOnlyList<Guid> KnowledgeBaseIds, DateTimeOffset CreatedAt);
 
-public sealed class AgentService(IProjectRepository projects, IAgentRepository agents, ILlmConfigurationRepository llmConfigurations, IMcpServerRepository mcpServers, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
+public sealed class AgentService(IProjectRepository projects, IAgentRepository agents, ILlmConfigurationRepository llmConfigurations, IMcpServerRepository mcpServers, IKnowledgeBaseGrantValidator knowledgeBases, IWebhookEventPublisher webhookEvents, TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<AgentSummary>?> ListAsync(Guid projectId, CancellationToken cancellationToken)
     {
@@ -14,25 +14,29 @@ public sealed class AgentService(IProjectRepository projects, IAgentRepository a
         return (await agents.ListByProjectAsync(projectId, cancellationToken)).Select(ToSummary).ToArray();
     }
 
-    public async Task<AgentSummary?> CreateAsync(Guid projectId, string name, string description, string systemPrompt, Guid? llmConfigurationId, IReadOnlyList<McpToolGrantSummary> mcpToolGrants, CancellationToken cancellationToken)
+    public async Task<AgentSummary?> CreateAsync(Guid projectId, string name, string description, string systemPrompt, Guid? llmConfigurationId, IReadOnlyList<McpToolGrantSummary> mcpToolGrants, IReadOnlyList<Guid> knowledgeBaseIds, CancellationToken cancellationToken)
     {
         if (await projects.FindByIdAsync(projectId, cancellationToken) is null) return null;
         await ValidateConfigurationAsync(projectId, llmConfigurationId, mcpToolGrants, cancellationToken);
         var agent = new AgentDefinition(Guid.NewGuid(), projectId, name, description, systemPrompt, llmConfigurationId, timeProvider.GetUtcNow());
         agent.ReplaceMcpToolGrants(mcpToolGrants.Select(item => (item.McpServerId, item.ToolName)));
+        if (!await knowledgeBases.AllBelongToProjectAsync(projectId, knowledgeBaseIds, cancellationToken)) throw new ArgumentException("Knowledge-base grants must belong to this project.");
+        agent.ReplaceKnowledgeBaseGrants(knowledgeBaseIds);
         await agents.AddAsync(agent, cancellationToken);
         await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.AgentCreated, ToSummary(agent), cancellationToken);
         await agents.SaveChangesAsync(cancellationToken);
         return ToSummary(agent);
     }
 
-    public async Task<AgentSummary?> UpdateAsync(Guid projectId, Guid agentId, string name, string description, string systemPrompt, Guid? llmConfigurationId, IReadOnlyList<McpToolGrantSummary> mcpToolGrants, CancellationToken cancellationToken)
+    public async Task<AgentSummary?> UpdateAsync(Guid projectId, Guid agentId, string name, string description, string systemPrompt, Guid? llmConfigurationId, IReadOnlyList<McpToolGrantSummary> mcpToolGrants, IReadOnlyList<Guid> knowledgeBaseIds, CancellationToken cancellationToken)
     {
         var agent = await agents.FindByIdAsync(projectId, agentId, cancellationToken);
         if (agent is null) return null;
         await ValidateConfigurationAsync(projectId, llmConfigurationId, mcpToolGrants, cancellationToken);
         agent.Update(name, description, systemPrompt, llmConfigurationId);
         agent.ReplaceMcpToolGrants(mcpToolGrants.Select(item => (item.McpServerId, item.ToolName)));
+        if (!await knowledgeBases.AllBelongToProjectAsync(projectId, knowledgeBaseIds, cancellationToken)) throw new ArgumentException("Knowledge-base grants must belong to this project.");
+        agent.ReplaceKnowledgeBaseGrants(knowledgeBaseIds);
         await webhookEvents.EnqueueAsync(projectId, AgentPlatform.Domain.Webhooks.WebhookEventTypes.AgentUpdated, ToSummary(agent), cancellationToken);
         await agents.SaveChangesAsync(cancellationToken);
         return ToSummary(agent);
@@ -58,5 +62,5 @@ public sealed class AgentService(IProjectRepository projects, IAgentRepository a
                 throw new ArgumentException("Each MCP tool must belong to a server in this project.", nameof(mcpToolGrants));
     }
 
-    private static AgentSummary ToSummary(AgentDefinition agent) => new(agent.Id, agent.ProjectId, agent.Name, agent.Description, agent.SystemPrompt, agent.LlmConfigurationId, agent.McpToolGrants.Select(item => new McpToolGrantSummary(item.McpServerId, item.ToolName)).ToArray(), agent.CreatedAt);
+    private static AgentSummary ToSummary(AgentDefinition agent) => new(agent.Id, agent.ProjectId, agent.Name, agent.Description, agent.SystemPrompt, agent.LlmConfigurationId, agent.McpToolGrants.Select(item => new McpToolGrantSummary(item.McpServerId, item.ToolName)).ToArray(), agent.KnowledgeBaseGrants.Select(item => item.KnowledgeBaseId).ToArray(), agent.CreatedAt);
 }

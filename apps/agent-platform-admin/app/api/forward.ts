@@ -1,6 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 
-export async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
+export async function authenticatedFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) {
   const { getToken } = await auth();
   const token = await getToken();
   if (!token) {

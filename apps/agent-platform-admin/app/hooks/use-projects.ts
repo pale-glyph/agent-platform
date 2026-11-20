@@ -16,7 +16,9 @@ export function useProjects(reportError: (message: string) => void) {
       setProjects((await response.json()) as Project[]);
     } catch (error) {
       reportError(
-        error instanceof Error ? error.message : "Projects could not be loaded.",
+        error instanceof Error
+          ? error.message
+          : "Projects could not be loaded.",
       );
     } finally {
       setIsLoading(false);

@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   description: "Agent Platform administration",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        <ClerkProvider>{children}</ClerkProvider>
       </body>
     </html>
   );

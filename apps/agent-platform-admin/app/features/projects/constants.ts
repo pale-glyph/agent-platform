@@ -16,6 +16,7 @@ export const projectTabs: ReadonlyArray<{ id: ProjectTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "agents", label: "Agents" },
   { id: "servers", label: "Servers" },
+  { id: "knowledgeBases", label: "Knowledge bases" },
   { id: "webhooks", label: "Webhooks" },
   { id: "threads", label: "Threads" },
 ];

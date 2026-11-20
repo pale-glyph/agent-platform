@@ -6,7 +6,9 @@ using AgentPlatform.Application.Runtime;
 using AgentPlatform.Infrastructure.Webhooks;
 using AgentPlatform.Infrastructure.Networking;
 using AgentPlatform.Infrastructure.Authentication;
+using AgentPlatform.Infrastructure.KnowledgeBases;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -21,7 +23,7 @@ public static class DependencyInjection
             GssEncryptionMode = GssEncryptionMode.Disable,
         }.ConnectionString;
 
-        services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(dataSourceConnectionString));
+        services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(dataSourceConnectionString).ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
         services.AddSingleton<IOutboundUrlPolicy, OutboundUrlPolicy>();
         services.AddSingleton<IAdministratorBootstrap, ConfigurationAdministratorBootstrap>();
         services.AddScoped<IAccountRepository, EfAccountRepository>();
@@ -40,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IWebhookEventPublisher, EfWebhookEventPublisher>();
         services.AddScoped<IWebhookDeliveryStore, EfWebhookDeliveryStore>();
         services.AddScoped<IUsageMetricRepository, EfUsageMetricRepository>();
+        services.AddScoped<IKnowledgeBaseGrantValidator, EfKnowledgeBaseGrantValidator>();
         services.AddHttpClient("webhooks", client => client.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         return services;
     }

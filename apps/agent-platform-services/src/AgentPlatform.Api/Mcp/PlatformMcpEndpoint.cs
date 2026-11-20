@@ -18,6 +18,7 @@ public static class PlatformMcpEndpoint
     {
         endpoints.MapGet("/mcp", () => Results.Ok(new { name = "agent-platform", transport = "Streamable HTTP JSON-RPC", message = "Send MCP JSON-RPC requests to this endpoint with POST. Start with the initialize method.", protocolVersion = ProtocolVersion })).RequireAuthorization("platform-mcp");
         endpoints.MapPost("/mcp", HandleAsync).RequireAuthorization("platform-mcp");
+        endpoints.MapGet("/api/platform-mcp/tools", () => Results.Ok(ToolDefinitions)).RequireAuthorization("platform-admin");
         return endpoints;
     }
 
@@ -104,12 +105,12 @@ public static class PlatformMcpEndpoint
                 case "delete_project": return await projects.DeleteAsync(ScopedProjectId(agent, p), ct) ? Success(new { deleted = true }) : NotFound("Project");
                 case "create_agent":
                 {
-                    var item = await agents.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.CreateAsync(ScopedProjectId(agent, p), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), [], ct);
                     return item is null ? NotFound("Project") : Success(item);
                 }
                 case "update_agent":
                 {
-                    var item = await agents.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), ct);
+                    var item = await agents.UpdateAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), RequiredString(p, "name"), RequiredString(p, "description"), RequiredString(p, "systemPrompt"), OptionalGuid(p, "llmConfigurationId"), ReadToolGrants(p), [], ct);
                     return item is null ? NotFound("Agent") : Success(item);
                 }
                 case "delete_agent": return await agents.DeleteAsync(ScopedProjectId(agent, p), RequiredGuid(p, "agentId"), ct) ? Success(new { deleted = true }) : NotFound("Agent");

@@ -21,7 +21,11 @@ export function ProjectWorkspacePage({
         <h1>{project.name}</h1>
         <p>Configure everything that belongs to this project.</p>
       </div>
-      <div className="project-tabs" role="tablist" aria-label="Project sections">
+      <div
+        className="project-tabs"
+        role="tablist"
+        aria-label="Project sections"
+      >
         {tabs.map((item) => (
           <button
             key={item.id}

@@ -53,6 +53,29 @@ services:
     - default
     - mcp
 
+  knowledge-base-api:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: knowledge-base-api
+    environment:
+      ASPNETCORE_URLS: http://+:8082
+      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      Clerk__Issuer: ${CLERK_JWT_ISSUER}
+      Nats__Url: ${NATS_URL}
+      Nats__StreamName: ${NATS_STREAM_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - knowledge-base-api
+      mcp: {}
+    restart: unless-stopped
+
   worker:
     build:
       context: .
@@ -76,6 +99,22 @@ services:
       - mcp
     restart: unless-stopped
 
+  embedding-worker:
+    build:
+      context: .
+      dockerfile: apps/agent-platform-services/Dockerfile
+      target: embedding-worker
+    environment:
+      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      Nats__Url: ${NATS_URL}
+      Nats__StreamName: ${NATS_STREAM_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
   admin:
     build:
       context: .
@@ -86,6 +125,7 @@ services:
     environment:
       API_INTERNAL_URL: http://frontend-api:8080
       THREAD_API_INTERNAL_URL: http://agent-api:8081
+      KNOWLEDGE_BASE_API_INTERNAL_URL: http://knowledge-base-api:8082
       NEXT_PUBLIC_JIM_AGENT_ID: ${JIM_AGENT_ID:-}
       JIM_AGENT_API_KEY: ${JIM_AGENT_API_KEY:-}
       AGENT_EVENTS_WEBHOOK_SECRET: ${AGENT_EVENTS_WEBHOOK_SECRET:-}
@@ -108,7 +148,7 @@ services:
       - traefik
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17-trixie
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

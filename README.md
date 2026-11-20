@@ -97,8 +97,11 @@ stateDiagram-v2
 - [Administration UI architecture](docs/design/002-administration-ui-architecture.md) — the Next.js-based administration application and its boundaries.
 - [Platform administration agent](docs/design/003-platform-administration-agent.md) — a UI-created agent that configures its project through explicitly granted MCP tools.
 - [Agent consumer specification](docs/agent-consumer-specification.md) — integrate a coding agent with chat threads and signed webhook events.
+- [Knowledge Base microservice specification](docs/knowledge-base-microservice-specification.md) — proposed project-scoped documents, asynchronous pgvector indexing, and explicitly granted MCP retrieval.
 
 ## Repository status
+
+Platform administrators can discover the built-in platform MCP tool catalog through the Clerk-authenticated `GET /api/platform-mcp/tools` endpoint (proxied by the admin application). Agent tool calls continue to use the agent API key and explicit grants.
 
 This repository is at the foundation stage. It includes an initial .NET solution, separate frontend and application-facing thread API hosts, a worker host, a Next.js administration UI, PostgreSQL/NATS infrastructure, project/agent CRUD, project-scoped MCP server configuration, and project webhooks with transactional delivery retries. The built-in platform MCP endpoint can list projects, retrieve a project with its agents, MCP servers, and webhooks, and create, update, or delete those resources through the control-plane services. An agent may select one platform LLM configuration and receives MCP access only through explicit, persisted per-tool grants to servers in its project. The UI marks an agent without an LLM as misconfigured. MCP server tool definitions are cached durably for each server's configured TTL and can be cleared from the administration UI. Agent threads can now be triggered with an initial prompt; their durable, cursor-paginated timeline records messages and tool calls. Operators may send a queued message (one pending message at a time) or a steering message, which records a cooperative cancellation request for an active execution. Every stored message and tool call creates an `agent.message` or `agent.tool_call` webhook delivery in the same database transaction. Clerk protects the administration UI and browser-facing API endpoints. Authenticated Clerk users are tracked as accounts in PostgreSQL. Worker-side model invocation and MCP tool execution remain the next implementation stages.
 
@@ -125,11 +128,13 @@ apps/
   agent-platform-admin/         Next.js administration UI
   agent-platform-services/
     src/
-      AgentPlatform.Api/        HTTP endpoints and control-plane services
+      AgentPlatform.Api/        Platform HTTP endpoints and control-plane services
+      AgentPlatform.KnowledgeBaseApi/ Dedicated knowledge-base HTTP microservice
       AgentPlatform.Application/ Use cases, contracts, and domain orchestration
       AgentPlatform.Domain/      Domain model and business rules
       AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
       AgentPlatform.Worker/      Background execution host
+      AgentPlatform.EmbeddingWorker/ Independent knowledge-base indexing host
 tests/
   AgentPlatform.UnitTests/
   AgentPlatform.IntegrationTests/
@@ -163,6 +168,21 @@ Build the API, worker, and administration UI images, then start the complete loc
 ./run.sh -d
 docker compose ps
 ```
+
+### Knowledge bases
+
+The dedicated `knowledge-base-api` container exposes project-scoped knowledge bases at
+`/api/projects/{projectId}/knowledge-bases`. Creating or replacing a document
+persists its source revision, indexing job, and transactional outbox intent
+before returning `202 Accepted`. The independently deployed `embedding-worker`
+Compose service claims those durable jobs and writes the replacement chunk set
+atomically. PostgreSQL uses the `pgvector/pgvector:pg17-trixie` image; existing
+local PostgreSQL volumes should be recreated only if they do not have the
+required `vector` extension.
+
+Its MCP endpoint is `POST /mcp` on the service. It uses the calling agent API
+key, requires an explicit `knowledge_base.search` grant, and derives the
+project scope from that key.
 
 The administration UI is exposed through the external Traefik gateway at
 `https://agent-platform.${DNS_SUFFIX}`.

@@ -26,12 +26,21 @@ export function AppHeader({ onCreateLlm }: AppHeaderProps) {
         )}
       </div>
       <div className="topbar-actions">
-        <a className="documentation-link" href="/agent-redoc" target="_blank" rel="noreferrer">
+        <a
+          className="documentation-link"
+          href="/agent-redoc"
+          target="_blank"
+          rel="noreferrer"
+        >
           Agent API docs <span aria-hidden="true">↗</span>
         </a>
         <UserButton />
         {page === "projects" ? (
-          <button className="new-button" type="button" onClick={openProjectForm}>
+          <button
+            className="new-button"
+            type="button"
+            onClick={openProjectForm}
+          >
             New project
           </button>
         ) : page === "llm" ? (

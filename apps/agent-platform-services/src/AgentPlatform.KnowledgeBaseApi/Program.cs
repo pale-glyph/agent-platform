@@ -1,0 +1,43 @@
+using System.Text.Json;
+using AgentPlatform.Infrastructure;
+using AgentPlatform.Infrastructure.KnowledgeBases;
+using AgentPlatform.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using AgentPlatform.KnowledgeBaseApi;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+var connectionString = builder.Configuration.GetConnectionString("Platform") ?? throw new InvalidOperationException("ConnectionStrings:Platform must be configured.");
+var clerkIssuer = builder.Configuration["Clerk:Issuer"] ?? throw new InvalidOperationException("Clerk:Issuer must be configured.");
+builder.Services.AddInfrastructure(connectionString);
+builder.Services.AddScoped<KnowledgeBaseService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options => { options.Authority = clerkIssuer; options.TokenValidationParameters.ValidateAudience = false; });
+builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, KnowledgeBaseMcpAuthenticationHandler>(KnowledgeBaseMcpAuthenticationDefaults.Scheme, _ => { });
+builder.Services.AddAuthorization(options => options.AddPolicy("knowledge-base-mcp", policy => { policy.AddAuthenticationSchemes(KnowledgeBaseMcpAuthenticationDefaults.Scheme); policy.RequireAuthenticatedUser(); }));
+var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope()) { await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync(); }
+app.MapHealthChecks("/health"); app.UseAuthentication(); app.UseAuthorization(); app.MapOpenApi();
+app.MapKnowledgeBaseMcp();
+
+var bases = app.MapGroup("/api/projects/{projectId:guid}/knowledge-bases").RequireAuthorization();
+bases.MapGet("/", async (Guid projectId, int? limit, KnowledgeBaseService service, CancellationToken ct) => Results.Ok(await service.ListAsync(projectId, Math.Clamp(limit ?? 25, 1, 100), ct)));
+bases.MapPost("/", async (Guid projectId, KnowledgeBaseRequest request, KnowledgeBaseService service, CancellationToken ct) => { try { var item=await service.CreateAsync(projectId,request.Name??string.Empty,request.Description,ct); return item is null?Results.NotFound():Results.Created($"/api/projects/{projectId}/knowledge-bases/{item.Id}",item); } catch(ArgumentException e) { return Results.ValidationProblem(new Dictionary<string,string[]> { ["knowledgeBase"]=[e.Message] }); }});
+bases.MapGet("/{knowledgeBaseId:guid}", async (Guid projectId, Guid knowledgeBaseId, KnowledgeBaseService service, CancellationToken ct) => (await service.FindAsync(projectId,knowledgeBaseId,ct)) is { } item ? Results.Ok(item) : Results.NotFound());
+bases.MapPatch("/{knowledgeBaseId:guid}", async (Guid projectId, Guid knowledgeBaseId, KnowledgeBaseRequest request, KnowledgeBaseService service, CancellationToken ct) => { try { return (await service.UpdateAsync(projectId,knowledgeBaseId,request.Name??string.Empty,request.Description,ct)) is { } item?Results.Ok(item):Results.NotFound(); } catch(ArgumentException e) { return Results.ValidationProblem(new Dictionary<string,string[]> { ["knowledgeBase"]=[e.Message] }); }});
+bases.MapDelete("/{knowledgeBaseId:guid}", async(Guid projectId,Guid knowledgeBaseId,KnowledgeBaseService service,CancellationToken ct) => await service.DeleteAsync(projectId,knowledgeBaseId,ct)?Results.Accepted():Results.NotFound());
+bases.MapGet("/{knowledgeBaseId:guid}/documents",async(Guid projectId,Guid knowledgeBaseId,KnowledgeBaseService service,CancellationToken ct)=>Results.Ok(await service.ListDocumentsAsync(projectId,knowledgeBaseId,ct)));
+bases.MapPost("/{knowledgeBaseId:guid}/documents",async(Guid projectId,Guid knowledgeBaseId,DocumentCreateRequest request,KnowledgeBaseService service,CancellationToken ct)=> { try {var item=await service.CreateDocumentAsync(projectId,knowledgeBaseId,request.Title??string.Empty,request.ExternalId,request.Content??string.Empty,request.Metadata,ct);return item is null?Results.NotFound():Results.Accepted($"/api/projects/{projectId}/knowledge-bases/{knowledgeBaseId}/documents/{item.Value.Document.Id}",new {document=item.Value.Document,revisionId=item.Value.Revision.Id,indexingStatus="Pending",indexingJobId=item.Value.Job.Id});}catch(ArgumentException e){return Results.ValidationProblem(new Dictionary<string,string[]> { ["document"]=[e.Message] });}});
+bases.MapGet("/{knowledgeBaseId:guid}/documents/{documentId:guid}",async(Guid projectId,Guid knowledgeBaseId,Guid documentId,KnowledgeBaseService service,CancellationToken ct)=>(await service.FindDocumentAsync(projectId,knowledgeBaseId,documentId,ct)) is { } item?Results.Ok(item):Results.NotFound());
+bases.MapGet("/{knowledgeBaseId:guid}/documents/{documentId:guid}/content",async(Guid projectId,Guid knowledgeBaseId,Guid documentId,KnowledgeBaseService service,CancellationToken ct)=>(await service.ActiveContentAsync(projectId,knowledgeBaseId,documentId,ct)) is { } content?Results.Ok(new {content}):Results.NotFound());
+bases.MapPut("/{knowledgeBaseId:guid}/documents/{documentId:guid}/content",async(Guid projectId,Guid knowledgeBaseId,Guid documentId,DocumentContentRequest request,KnowledgeBaseService service,CancellationToken ct)=> {try {var item=await service.ReplaceAsync(projectId,knowledgeBaseId,documentId,request.Content??string.Empty,ct);return item is null?Results.NotFound():Results.Accepted($"/api/projects/{projectId}/knowledge-bases/{knowledgeBaseId}/documents/{documentId}",new {document=item.Value.Document,revisionId=item.Value.Revision.Id,indexingStatus="Pending",indexingJobId=item.Value.Job.Id});}catch(ArgumentException e){return Results.ValidationProblem(new Dictionary<string,string[]> { ["content"]=[e.Message] });}});
+bases.MapPatch("/{knowledgeBaseId:guid}/documents/{documentId:guid}",async(Guid projectId,Guid knowledgeBaseId,Guid documentId,DocumentMetadataRequest request,KnowledgeBaseService service,CancellationToken ct)=> {try{return (await service.UpdateDocumentAsync(projectId,knowledgeBaseId,documentId,request.Title??string.Empty,request.Metadata,ct)) is { } item?Results.Ok(item):Results.NotFound();}catch(ArgumentException e){return Results.ValidationProblem(new Dictionary<string,string[]> { ["document"]=[e.Message] });}});
+bases.MapDelete("/{knowledgeBaseId:guid}/documents/{documentId:guid}",async(Guid projectId,Guid knowledgeBaseId,Guid documentId,KnowledgeBaseService service,CancellationToken ct)=>await service.DeleteDocumentAsync(projectId,knowledgeBaseId,documentId,ct)?Results.NoContent():Results.NotFound());
+app.Run();
+public sealed record KnowledgeBaseRequest(string? Name,string? Description);
+public sealed record DocumentCreateRequest(string? Title,string? ExternalId,string? Content,JsonElement Metadata);
+public sealed record DocumentContentRequest(string? Content);
+public sealed record DocumentMetadataRequest(string? Title,JsonElement Metadata);

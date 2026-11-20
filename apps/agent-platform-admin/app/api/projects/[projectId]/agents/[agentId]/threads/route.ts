@@ -1,16 +1,42 @@
-import { AgentApiAuthenticationError, AgentApiConfigurationError, jimAgentFetch } from "@/app/api/agent-api";
+import {
+  AgentApiAuthenticationError,
+  AgentApiConfigurationError,
+  jimAgentFetch,
+} from "@/app/api/agent-api";
 import { NextRequest, NextResponse } from "next/server";
 
 const apiUrl = process.env.THREAD_API_INTERNAL_URL ?? "http://localhost:8081";
 
-export async function POST(request: NextRequest, context: { params: Promise<{ projectId: string; agentId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ projectId: string; agentId: string }> },
+) {
   try {
     const { projectId, agentId } = await context.params;
-    const response = await jimAgentFetch(`${apiUrl}/api/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}/threads`, { method: "POST", body: await request.text(), headers: { "Content-Type": "application/json" }, cache: "no-store" });
-    return new NextResponse(response.body, { status: response.status, headers: { "Content-Type": response.headers.get("Content-Type") ?? "application/json" } });
+    const response = await jimAgentFetch(
+      `${apiUrl}/api/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}/threads`,
+      {
+        method: "POST",
+        body: await request.text(),
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      },
+    );
+    return new NextResponse(response.body, {
+      status: response.status,
+      headers: {
+        "Content-Type":
+          response.headers.get("Content-Type") ?? "application/json",
+      },
+    });
   } catch (error) {
-    if (error instanceof AgentApiAuthenticationError) return NextResponse.json({ title: error.message }, { status: 401 });
-    if (error instanceof AgentApiConfigurationError) return NextResponse.json({ title: error.message }, { status: 503 });
-    return NextResponse.json({ title: "The API service is unavailable." }, { status: 503 });
+    if (error instanceof AgentApiAuthenticationError)
+      return NextResponse.json({ title: error.message }, { status: 401 });
+    if (error instanceof AgentApiConfigurationError)
+      return NextResponse.json({ title: error.message }, { status: 503 });
+    return NextResponse.json(
+      { title: "The API service is unavailable." },
+      { status: 503 },
+    );
   }
 }
