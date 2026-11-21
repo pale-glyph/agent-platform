@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { KnowledgeBase } from "../../../types";
 import { readError } from "../../../services/http";
+import { KnowledgeBaseDocumentsDialog } from "./knowledge-base-documents-dialog";
 export function KnowledgeBasesTab({
   projectId,
   onChanged,
@@ -13,21 +14,27 @@ export function KnowledgeBasesTab({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [open, setOpen] = useState(false);
+  const [selectedBase, setSelectedBase] = useState<KnowledgeBase | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const load = async () => {
+  const load = useCallback(async () => {
     const response = await fetch(`/api/projects/${projectId}/knowledge-bases/`);
     if (!response.ok) throw new Error(await readError(response));
     const values = (await response.json()) as KnowledgeBase[];
     setBases(values);
     onChanged(values);
-  };
+  }, [onChanged, projectId]);
   useEffect(() => {
-    void load().catch((e) =>
-      setError(
-        e instanceof Error ? e.message : "Knowledge bases could not be loaded.",
-      ),
-    );
-  }, [projectId]);
+    const timeoutId = window.setTimeout(() => {
+      void load().catch((e) =>
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Knowledge bases could not be loaded.",
+        ),
+      );
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -106,17 +113,31 @@ export function KnowledgeBasesTab({
         <ul className="project-list">
           {bases.map((base) => (
             <li key={base.id}>
-              <span className="project-badge">
-                {base.name.slice(0, 1).toUpperCase()}
-              </span>
-              <div>
-                <strong>{base.name}</strong>
-                <small>{base.description ?? "No description"}</small>
-                <small>{base.status}</small>
-              </div>
+              <button
+                className="knowledge-base-list-item"
+                type="button"
+                onClick={() => setSelectedBase(base)}
+                aria-label={`Open ${base.name} documents`}
+              >
+                <span className="project-badge">
+                  {base.name.slice(0, 1).toUpperCase()}
+                </span>
+                <div>
+                  <strong>{base.name}</strong>
+                  <small>{base.description ?? "No description"}</small>
+                  <small>{base.status}</small>
+                </div>
+              </button>
             </li>
           ))}
         </ul>
+      )}
+      {selectedBase && (
+        <KnowledgeBaseDocumentsDialog
+          projectId={projectId}
+          base={selectedBase}
+          onClose={() => setSelectedBase(null)}
+        />
       )}
     </section>
   );
