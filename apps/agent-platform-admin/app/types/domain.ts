@@ -126,6 +126,21 @@ export type KnowledgeBase = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type KnowledgeBaseDocument = {
+  id: string;
+  projectId: string;
+  knowledgeBaseId: string;
+  externalId: string | null;
+  title: string;
+  metadata: string;
+  indexingStatus: string;
+  lastIndexedAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 export type ProjectTab =
   "overview" | "agents" | "servers" | "knowledgeBases" | "webhooks" | "threads";
 export type AdminPage = "projects" | "chat" | "llm" | "usage";
