@@ -42,7 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IWebhookEventPublisher, EfWebhookEventPublisher>();
         services.AddScoped<IWebhookDeliveryStore, EfWebhookDeliveryStore>();
         services.AddScoped<IUsageMetricRepository, EfUsageMetricRepository>();
-        services.AddScoped<IKnowledgeBaseGrantValidator, EfKnowledgeBaseGrantValidator>();
+        services.AddHttpClient<IKnowledgeBaseGrantValidator, HttpKnowledgeBaseGrantValidator>();
         services.AddHttpClient("webhooks", client => client.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         return services;
     }

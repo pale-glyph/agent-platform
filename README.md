@@ -129,12 +129,15 @@ apps/
   agent-platform-services/
     src/
       AgentPlatform.Api/        Platform HTTP endpoints and control-plane services
-      AgentPlatform.KnowledgeBaseApi/ Dedicated knowledge-base HTTP microservice
       AgentPlatform.Application/ Use cases, contracts, and domain orchestration
       AgentPlatform.Domain/      Domain model and business rules
       AgentPlatform.Infrastructure/ PostgreSQL and NATS implementations
       AgentPlatform.Worker/      Background execution host
-      AgentPlatform.EmbeddingWorker/ Independent knowledge-base indexing host
+  knowledge-base/               Independently deployable knowledge-base solution
+    src/
+      KnowledgeBase.Api/         Project-scoped knowledge-base HTTP API
+      KnowledgeBase.Service/     Knowledge-base domain and PostgreSQL persistence
+      KnowledgeBase.Worker/      Independent document-indexing worker
 tests/
   AgentPlatform.UnitTests/
   AgentPlatform.IntegrationTests/
@@ -176,13 +179,11 @@ The dedicated `knowledge-base-api` container exposes project-scoped knowledge ba
 persists its source revision, indexing job, and transactional outbox intent
 before returning `202 Accepted`. The independently deployed `embedding-worker`
 Compose service claims those durable jobs and writes the replacement chunk set
-atomically. PostgreSQL uses the `pgvector/pgvector:pg17-trixie` image; existing
-local PostgreSQL volumes should be recreated only if they do not have the
-required `vector` extension.
-
-Its MCP endpoint is `POST /mcp` on the service. It uses the calling agent API
-key, requires an explicit `knowledge_base.search` grant, and derives the
-project scope from that key.
+atomically. It owns a separate `knowledge_base` database on the platform PostgreSQL server.
+`project_id` is an opaque platform reference: the knowledge-base schema has no
+foreign keys to platform tables. The platform validates agent grant references
+through the service's internal validation endpoint, authenticated with
+`KNOWLEDGE_BASE_SERVICE_KEY`.
 
 The administration UI is exposed through the external Traefik gateway at
 `https://agent-platform.${DNS_SUFFIX}`.

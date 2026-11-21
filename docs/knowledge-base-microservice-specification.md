@@ -1,6 +1,6 @@
 # Knowledge Base Microservice Specification
 
-- **Status:** Proposed
+- **Status:** Implemented
 - **Date:** 2026-11-19
 - **Owner:** Agent Platform
 
@@ -29,7 +29,7 @@ The service exposes a built-in MCP server for permitted agent versions. Its sear
 
 ## Architecture and ownership
 
-The existing project remains the resource and authorisation boundary. The knowledge-base service is a control-plane API and background worker pair; it may be deployed as a separate process/container but shares the platform PostgreSQL database and JetStream infrastructure through explicit schemas, subjects, and contracts.
+The existing project remains the resource and authorisation boundary. The knowledge-base service is an independently deployable API and worker pair with its own PostgreSQL database. `project_id`, agent IDs, and grant IDs are opaque external references: the knowledge-base database has no foreign keys to platform-owned tables. The platform resolves ownership through an authenticated internal service API.
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ Project
             └── Document chunk (zero or more embeddings)
 ```
 
-`project_id` is stored on every knowledge-base-owned record as a denormalised isolation guard and is validated against its parent foreign key. All HTTP routes include the project ID. A request for a resource outside the caller's project returns `404` rather than disclosing its existence.
+`project_id` is stored on every knowledge-base-owned record as an isolation reference. All HTTP routes include the project ID. The service only uses foreign keys between its own records; a request for a resource outside the caller's project returns `404` rather than disclosing its existence.
 
 ## Components and responsibilities
 
@@ -98,7 +98,7 @@ Chunking and embedding settings are immutable once a document has been accepted.
 
 | Column | Notes |
 | --- | --- |
-| `id`, `project_id`, `knowledge_base_id` | Identity and scoped foreign keys. |
+| `id`, `project_id`, `knowledge_base_id` | Identity, external project reference, and service-local knowledge-base foreign key. |
 | `external_id` | Optional caller-supplied stable ID, unique per knowledge base when present. |
 | `title` | Required, maximum 512 characters. |
 | `metadata` | Validated JSON object, maximum 32 KiB; reserved keys beginning with `_` are rejected. |

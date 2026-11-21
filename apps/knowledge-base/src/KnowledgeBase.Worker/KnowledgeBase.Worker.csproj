@@ -2,7 +2,6 @@
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="../AgentPlatform.Infrastructure/AgentPlatform.Infrastructure.csproj" />
-    <ProjectReference Include="../AgentPlatform.Domain/AgentPlatform.Domain.csproj" />
+    <ProjectReference Include="../KnowledgeBase.Service/KnowledgeBase.Service.csproj" />
   </ItemGroup>
 </Project>

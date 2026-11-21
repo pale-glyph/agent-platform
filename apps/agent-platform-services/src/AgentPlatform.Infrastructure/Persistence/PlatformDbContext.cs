@@ -6,7 +6,6 @@ using AgentPlatform.Domain.Webhooks;
 using AgentPlatform.Domain.Threads;
 using AgentPlatform.Domain.Metrics;
 using AgentPlatform.Domain.Accounts;
-using AgentPlatform.Domain.KnowledgeBases;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgentPlatform.Infrastructure.Persistence;
@@ -26,27 +25,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AgentThreadEntry> AgentThreadEntries => Set<AgentThreadEntry>();
     public DbSet<UsageMetricBucket> UsageMetricBuckets => Set<UsageMetricBucket>();
     public DbSet<Account> Accounts => Set<Account>();
-    public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
-    public DbSet<KnowledgeBaseDocument> KnowledgeBaseDocuments => Set<KnowledgeBaseDocument>();
-    public DbSet<KnowledgeBaseDocumentRevision> KnowledgeBaseDocumentRevisions => Set<KnowledgeBaseDocumentRevision>();
-    public DbSet<KnowledgeBaseDocumentChunk> KnowledgeBaseDocumentChunks => Set<KnowledgeBaseDocumentChunk>();
-    public DbSet<KnowledgeBaseIndexingJob> KnowledgeBaseIndexingJobs => Set<KnowledgeBaseIndexingJob>();
-    public DbSet<KnowledgeBaseOutboxMessage> KnowledgeBaseOutboxMessages => Set<KnowledgeBaseOutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var kb = modelBuilder.Entity<KnowledgeBase>();
-        kb.ToTable("knowledge_bases"); kb.HasKey(x => x.Id); kb.Property(x => x.Id).HasColumnName("id"); kb.Property(x => x.ProjectId).HasColumnName("project_id"); kb.Property(x => x.Name).HasColumnName("name").HasMaxLength(200); kb.Property(x => x.Description).HasColumnName("description").HasMaxLength(4000); kb.Property(x => x.EmbeddingModelId).HasColumnName("embedding_model"); kb.Property(x => x.ChunkSizeTokensValue).HasColumnName("chunk_size_tokens"); kb.Property(x => x.ChunkOverlapTokensValue).HasColumnName("chunk_overlap_tokens"); kb.Property(x => x.Status).HasColumnName("status").HasConversion<string>(); kb.Property(x => x.CreatedAt).HasColumnName("created_at"); kb.Property(x => x.UpdatedAt).HasColumnName("updated_at"); kb.Property(x => x.DeletedAt).HasColumnName("deleted_at"); kb.Property(x => x.RowVersion).HasColumnName("xmin").IsRowVersion(); kb.HasIndex(x => new { x.ProjectId, x.Name }).HasFilter("deleted_at IS NULL").IsUnique(); kb.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
-        var doc = modelBuilder.Entity<KnowledgeBaseDocument>();
-        doc.ToTable("knowledge_base_documents"); doc.HasKey(x => x.Id); doc.Property(x => x.Id).HasColumnName("id"); doc.Property(x => x.ProjectId).HasColumnName("project_id"); doc.Property(x => x.KnowledgeBaseId).HasColumnName("knowledge_base_id"); doc.Property(x => x.ExternalId).HasColumnName("external_id").HasMaxLength(512); doc.Property(x => x.Title).HasColumnName("title").HasMaxLength(512); doc.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb"); doc.Property(x => x.ActiveRevisionId).HasColumnName("active_revision_id"); doc.Property(x => x.IndexingStatus).HasColumnName("indexing_status").HasConversion<string>(); doc.Property(x => x.LastIndexedAt).HasColumnName("last_indexed_at"); doc.Property(x => x.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(100); doc.Property(x => x.LastErrorMessage).HasColumnName("last_error_message").HasMaxLength(2000); doc.Property(x => x.CreatedAt).HasColumnName("created_at"); doc.Property(x => x.UpdatedAt).HasColumnName("updated_at"); doc.Property(x => x.DeletedAt).HasColumnName("deleted_at"); doc.Property(x => x.RowVersion).HasColumnName("xmin").IsRowVersion(); doc.HasIndex(x => new { x.KnowledgeBaseId, x.ExternalId }).HasFilter("external_id IS NOT NULL AND deleted_at IS NULL").IsUnique(); doc.HasIndex(x => new { x.ProjectId, x.KnowledgeBaseId }); doc.HasOne<KnowledgeBase>().WithMany().HasForeignKey(x => x.KnowledgeBaseId).OnDelete(DeleteBehavior.Restrict);
-        var revision = modelBuilder.Entity<KnowledgeBaseDocumentRevision>();
-        revision.ToTable("knowledge_base_document_revisions"); revision.HasKey(x => x.Id); foreach (var property in new[] { "Id", "ProjectId", "KnowledgeBaseId", "DocumentId", "RevisionNumber", "Content", "ContentSha256", "EmbeddingModel", "ChunkSizeTokens", "ChunkOverlapTokens", "Status", "AttemptCount", "CreatedAt", "IndexedAt" }) revision.Property(property).HasColumnName(System.Text.RegularExpressions.Regex.Replace(property, "([a-z])([A-Z])", "$1_$2").ToLowerInvariant()); revision.Property(x => x.Content).HasColumnType("text"); revision.Property(x => x.Status).HasConversion<string>(); revision.HasIndex(x => new { x.DocumentId, x.RevisionNumber }).IsUnique(); revision.HasOne<KnowledgeBaseDocument>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
-        var chunk = modelBuilder.Entity<KnowledgeBaseDocumentChunk>();
-        chunk.ToTable("knowledge_base_document_chunks"); chunk.HasKey(x => x.Id); foreach (var property in new[] { "Id", "ProjectId", "KnowledgeBaseId", "DocumentId", "DocumentRevisionId", "ChunkIndex", "TokenStart", "TokenEnd", "Text", "ContentSha256", "Embedding" }) chunk.Property(property).HasColumnName(System.Text.RegularExpressions.Regex.Replace(property, "([a-z])([A-Z])", "$1_$2").ToLowerInvariant()); chunk.Property(x => x.Text).HasColumnType("text"); chunk.Property(x => x.Embedding).HasColumnType("vector(384)"); chunk.HasIndex(x => new { x.DocumentRevisionId, x.ChunkIndex }).IsUnique(); chunk.HasIndex(x => new { x.ProjectId, x.KnowledgeBaseId }); chunk.HasOne<KnowledgeBaseDocumentRevision>().WithMany().HasForeignKey(x => x.DocumentRevisionId).OnDelete(DeleteBehavior.Restrict);
-        var job = modelBuilder.Entity<KnowledgeBaseIndexingJob>();
-        job.ToTable("knowledge_base_indexing_jobs"); job.HasKey(x => x.Id); foreach (var property in new[] { "Id", "ProjectId", "KnowledgeBaseId", "DocumentId", "RevisionId", "Status", "AttemptCount", "CreatedAt", "LeaseUntil", "FailureCode", "FailureMessage" }) job.Property(property).HasColumnName(System.Text.RegularExpressions.Regex.Replace(property, "([a-z])([A-Z])", "$1_$2").ToLowerInvariant()); job.Property(x => x.Status).HasConversion<string>(); job.HasIndex(x => new { x.Status, x.CreatedAt }); job.HasIndex(x => x.RevisionId).IsUnique();
-        var outbox = modelBuilder.Entity<KnowledgeBaseOutboxMessage>();
-        outbox.ToTable("knowledge_base_outbox_messages"); outbox.HasKey(x => x.Id); foreach (var property in new[] { "Id", "JobId", "ProjectId", "EventType", "Payload", "CreatedAt", "PublishedAt" }) outbox.Property(property).HasColumnName(System.Text.RegularExpressions.Regex.Replace(property, "([a-z])([A-Z])", "$1_$2").ToLowerInvariant()); outbox.Property(x => x.Payload).HasColumnType("jsonb"); outbox.HasIndex(x => x.JobId).IsUnique(); outbox.HasIndex(x => x.PublishedAt);
         var account = modelBuilder.Entity<Account>();
         account.ToTable("accounts");
         account.HasKey(item => item.Id);
@@ -152,7 +133,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         knowledgeBaseGrant.Property(item => item.AgentId).HasColumnName("agent_id");
         knowledgeBaseGrant.Property(item => item.KnowledgeBaseId).HasColumnName("knowledge_base_id");
         knowledgeBaseGrant.HasOne<AgentDefinition>().WithMany(item => item.KnowledgeBaseGrants).HasForeignKey(item => item.AgentId).OnDelete(DeleteBehavior.Cascade);
-        knowledgeBaseGrant.HasOne<KnowledgeBase>().WithMany().HasForeignKey(item => item.KnowledgeBaseId).OnDelete(DeleteBehavior.Cascade);
+        // Knowledge-base IDs are owned by the knowledge-base service. This is a reference, not a cross-service foreign key.
 
         var llm = modelBuilder.Entity<LlmConfiguration>();
         llm.ToTable("llm_configurations"); llm.HasKey(item => item.Id);

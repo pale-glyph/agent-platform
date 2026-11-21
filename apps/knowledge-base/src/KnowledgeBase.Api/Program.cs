@@ -1,27 +1,32 @@
 using System.Text.Json;
-using AgentPlatform.Infrastructure;
-using AgentPlatform.Infrastructure.KnowledgeBases;
-using AgentPlatform.Infrastructure.Persistence;
+using KnowledgeBase.Service;
+using KnowledgeBase.Service.Persistence;
+using KnowledgeBase.Service.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
-using AgentPlatform.KnowledgeBaseApi;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("Platform") ?? throw new InvalidOperationException("ConnectionStrings:Platform must be configured.");
+var connectionString = builder.Configuration.GetConnectionString("KnowledgeBase") ?? throw new InvalidOperationException("ConnectionStrings:KnowledgeBase must be configured.");
 var clerkIssuer = builder.Configuration["Clerk:Issuer"] ?? throw new InvalidOperationException("Clerk:Issuer must be configured.");
-builder.Services.AddInfrastructure(connectionString);
+builder.Services.AddKnowledgeBasePersistence(connectionString);
 builder.Services.AddScoped<KnowledgeBaseService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options => { options.Authority = clerkIssuer; options.TokenValidationParameters.ValidateAudience = false; });
-builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, KnowledgeBaseMcpAuthenticationHandler>(KnowledgeBaseMcpAuthenticationDefaults.Scheme, _ => { });
-builder.Services.AddAuthorization(options => options.AddPolicy("knowledge-base-mcp", policy => { policy.AddAuthenticationSchemes(KnowledgeBaseMcpAuthenticationDefaults.Scheme); policy.RequireAuthenticatedUser(); }));
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope()) { await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync(); }
+await using (var scope = app.Services.CreateAsyncScope()) { await scope.ServiceProvider.GetRequiredService<KnowledgeBaseDbContext>().Database.MigrateAsync(); }
 app.MapHealthChecks("/health"); app.UseAuthentication(); app.UseAuthorization(); app.MapOpenApi();
-app.MapKnowledgeBaseMcp();
+
+app.MapPost("/internal/projects/{projectId:guid}/knowledge-bases/validate", async (Guid projectId, KnowledgeBaseValidationRequest request, HttpRequest httpRequest, KnowledgeBaseDbContext db, IConfiguration configuration, CancellationToken ct) =>
+{
+    var expectedKey = configuration["KnowledgeBase:ServiceKey"];
+    if (string.IsNullOrWhiteSpace(expectedKey) || !string.Equals(httpRequest.Headers["X-Knowledge-Base-Service-Key"], expectedKey, StringComparison.Ordinal)) return Results.Unauthorized();
+    var ids = request.KnowledgeBaseIds ?? [];
+    var valid = ids.Count == ids.Distinct().Count() && await db.KnowledgeBases.CountAsync(item => item.ProjectId == projectId && item.DeletedAt == null && ids.Contains(item.Id), ct) == ids.Count;
+    return Results.Ok(new { valid });
+});
 
 var bases = app.MapGroup("/api/projects/{projectId:guid}/knowledge-bases").RequireAuthorization();
 bases.MapGet("/", async (Guid projectId, int? limit, KnowledgeBaseService service, CancellationToken ct) => Results.Ok(await service.ListAsync(projectId, Math.Clamp(limit ?? 25, 1, 100), ct)));
@@ -41,3 +46,4 @@ public sealed record KnowledgeBaseRequest(string? Name,string? Description);
 public sealed record DocumentCreateRequest(string? Title,string? ExternalId,string? Content,JsonElement Metadata);
 public sealed record DocumentContentRequest(string? Content);
 public sealed record DocumentMetadataRequest(string? Title,JsonElement Metadata);
+public sealed record KnowledgeBaseValidationRequest(IReadOnlyList<Guid>? KnowledgeBaseIds);

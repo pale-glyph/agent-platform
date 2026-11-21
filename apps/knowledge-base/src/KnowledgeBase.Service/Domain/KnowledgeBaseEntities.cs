@@ -1,19 +1,19 @@
 using System.Text.Json;
 
-namespace AgentPlatform.Domain.KnowledgeBases;
+namespace KnowledgeBase.Service.Domain;
 
 public enum KnowledgeBaseStatus { Active, Deleting, Deleted }
 public enum DocumentIndexingStatus { Pending, Indexing, Ready, Failed, Deleted }
 public enum IndexingJobStatus { Pending, Processing, Ready, Failed, Superseded, Deleted }
 
-public sealed class KnowledgeBase
+public sealed class KnowledgeBaseRecord
 {
-    private KnowledgeBase() { }
+    private KnowledgeBaseRecord() { }
     public const string EmbeddingModel = "BAAI/bge-small-en-v1.5";
     public const int EmbeddingDimensions = 384;
     public const int ChunkSizeTokens = 384;
     public const int ChunkOverlapTokens = 64;
-    public KnowledgeBase(Guid id, Guid projectId, string name, string? description, DateTimeOffset now)
+    public KnowledgeBaseRecord(Guid id, Guid projectId, string name, string? description, DateTimeOffset now)
     { Id = id; ProjectId = projectId; Name = Validate(name, 200, "Knowledge base name"); Description = ValidateOptional(description, 4000); CreatedAt = UpdatedAt = now; }
     public Guid Id { get; } public Guid ProjectId { get; } public string Name { get; private set; } = null!; public string? Description { get; private set; }
     public string EmbeddingModelId { get; private set; } = EmbeddingModel; public int ChunkSizeTokensValue { get; private set; } = ChunkSizeTokens; public int ChunkOverlapTokensValue { get; private set; } = ChunkOverlapTokens;
@@ -29,11 +29,11 @@ public sealed class KnowledgeBaseDocument
 {
     private KnowledgeBaseDocument() { }
     public KnowledgeBaseDocument(Guid id, Guid projectId, Guid knowledgeBaseId, string title, string? externalId, string metadata, DateTimeOffset now)
-    { Id=id; ProjectId=projectId; KnowledgeBaseId=knowledgeBaseId; Title=KnowledgeBase.Validate(title,512,"Document title"); ExternalId=externalId; Metadata=metadata; CreatedAt=UpdatedAt=now; }
+    { Id=id; ProjectId=projectId; KnowledgeBaseId=knowledgeBaseId; Title=KnowledgeBaseRecord.Validate(title,512,"Document title"); ExternalId=externalId; Metadata=metadata; CreatedAt=UpdatedAt=now; }
     public Guid Id { get; } public Guid ProjectId { get; } public Guid KnowledgeBaseId { get; } public string? ExternalId { get; private set; } public string Title { get; private set; } = null!; public string Metadata { get; private set; } = null!;
     public Guid? ActiveRevisionId { get; private set; } public DocumentIndexingStatus IndexingStatus { get; private set; } = DocumentIndexingStatus.Pending; public DateTimeOffset? LastIndexedAt { get; private set; } public string? LastErrorCode { get; private set; } public string? LastErrorMessage { get; private set; }
     public DateTimeOffset CreatedAt { get; } public DateTimeOffset UpdatedAt { get; private set; } public DateTimeOffset? DeletedAt { get; private set; } public uint RowVersion { get; private set; }
-    public void UpdateMetadata(string title, string metadata, DateTimeOffset now) { Title=KnowledgeBase.Validate(title,512,"Document title"); Metadata=metadata; UpdatedAt=now; }
+    public void UpdateMetadata(string title, string metadata, DateTimeOffset now) { Title=KnowledgeBaseRecord.Validate(title,512,"Document title"); Metadata=metadata; UpdatedAt=now; }
     public void MarkPending(DateTimeOffset now) { IndexingStatus=DocumentIndexingStatus.Pending; LastErrorCode=LastErrorMessage=null; UpdatedAt=now; }
     public void MarkReady(Guid revisionId, DateTimeOffset now) { ActiveRevisionId=revisionId; IndexingStatus=DocumentIndexingStatus.Ready; LastIndexedAt=now; LastErrorCode=LastErrorMessage=null; UpdatedAt=now; }
     public void MarkFailed(string code, string message, DateTimeOffset now) { IndexingStatus=DocumentIndexingStatus.Failed; LastErrorCode=code; LastErrorMessage=message; UpdatedAt=now; }
@@ -46,7 +46,7 @@ public sealed class KnowledgeBaseDocumentRevision
     public KnowledgeBaseDocumentRevision(Guid id, Guid projectId, Guid knowledgeBaseId, Guid documentId, int number, string content, string sha256, DateTimeOffset now)
     { Id=id; ProjectId=projectId; KnowledgeBaseId=knowledgeBaseId; DocumentId=documentId; RevisionNumber=number; Content=content; ContentSha256=sha256; CreatedAt=now; }
     public Guid Id { get; } public Guid ProjectId { get; } public Guid KnowledgeBaseId { get; } public Guid DocumentId { get; } public int RevisionNumber { get; } public string Content { get; } = null!; public string ContentSha256 { get; } = null!;
-    public string EmbeddingModel { get; private set; } = KnowledgeBase.EmbeddingModel; public int ChunkSizeTokens { get; private set; } = KnowledgeBase.ChunkSizeTokens; public int ChunkOverlapTokens { get; private set; } = KnowledgeBase.ChunkOverlapTokens;
+    public string EmbeddingModel { get; private set; } = KnowledgeBaseRecord.EmbeddingModel; public int ChunkSizeTokens { get; private set; } = KnowledgeBaseRecord.ChunkSizeTokens; public int ChunkOverlapTokens { get; private set; } = KnowledgeBaseRecord.ChunkOverlapTokens;
     public DocumentIndexingStatus Status { get; private set; } = DocumentIndexingStatus.Pending; public int AttemptCount { get; private set; } public DateTimeOffset CreatedAt { get; } public DateTimeOffset? IndexedAt { get; private set; }
     public void StartAttempt() { Status=DocumentIndexingStatus.Indexing; AttemptCount++; } public void Complete(DateTimeOffset now) { Status=DocumentIndexingStatus.Ready; IndexedAt=now; } public void Fail() => Status=DocumentIndexingStatus.Failed;
 }

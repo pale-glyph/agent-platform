@@ -1,19 +1,19 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using AgentPlatform.Domain.KnowledgeBases;
-using AgentPlatform.Infrastructure.Persistence;
+using KnowledgeBase.Service.Domain;
+using KnowledgeBase.Service.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace AgentPlatform.Infrastructure.KnowledgeBases;
+namespace KnowledgeBase.Service.Services;
 
 /// <summary>Control-plane persistence boundary for knowledge bases. All document writes create an auditable job and outbox record in one transaction.</summary>
-public sealed class KnowledgeBaseService(PlatformDbContext db, TimeProvider clock)
+public sealed class KnowledgeBaseService(KnowledgeBaseDbContext db, TimeProvider clock)
 {
-    public async Task<IReadOnlyList<KnowledgeBase>> ListAsync(Guid projectId, int limit, CancellationToken ct) => await db.KnowledgeBases.AsNoTracking().Where(x => x.ProjectId == projectId && x.DeletedAt == null).OrderBy(x => x.Name).Take(limit).ToArrayAsync(ct);
-    public Task<KnowledgeBase?> FindAsync(Guid projectId, Guid id, CancellationToken ct) => db.KnowledgeBases.AsNoTracking().SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Id == id && x.DeletedAt == null, ct);
-    public async Task<KnowledgeBase?> CreateAsync(Guid projectId, string name, string? description, CancellationToken ct) { if (!await db.Projects.AnyAsync(x => x.Id == projectId, ct)) return null; var item = new KnowledgeBase(Guid.NewGuid(), projectId, name, description, clock.GetUtcNow()); db.KnowledgeBases.Add(item); await db.SaveChangesAsync(ct); return item; }
-    public async Task<KnowledgeBase?> UpdateAsync(Guid projectId, Guid id, string name, string? description, CancellationToken ct) { var item = await db.KnowledgeBases.SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Id == id && x.DeletedAt == null, ct); if (item is null) return null; item.Update(name, description, clock.GetUtcNow()); await db.SaveChangesAsync(ct); return item; }
+    public async Task<IReadOnlyList<KnowledgeBaseRecord>> ListAsync(Guid projectId, int limit, CancellationToken ct) => await db.KnowledgeBases.AsNoTracking().Where(x => x.ProjectId == projectId && x.DeletedAt == null).OrderBy(x => x.Name).Take(limit).ToArrayAsync(ct);
+    public Task<KnowledgeBaseRecord?> FindAsync(Guid projectId, Guid id, CancellationToken ct) => db.KnowledgeBases.AsNoTracking().SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Id == id && x.DeletedAt == null, ct);
+    public async Task<KnowledgeBaseRecord?> CreateAsync(Guid projectId, string name, string? description, CancellationToken ct) { var item = new KnowledgeBaseRecord(Guid.NewGuid(), projectId, name, description, clock.GetUtcNow()); db.KnowledgeBases.Add(item); await db.SaveChangesAsync(ct); return item; }
+    public async Task<KnowledgeBaseRecord?> UpdateAsync(Guid projectId, Guid id, string name, string? description, CancellationToken ct) { var item = await db.KnowledgeBases.SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Id == id && x.DeletedAt == null, ct); if (item is null) return null; item.Update(name, description, clock.GetUtcNow()); await db.SaveChangesAsync(ct); return item; }
     public async Task<bool> DeleteAsync(Guid projectId, Guid id, CancellationToken ct) { var item = await db.KnowledgeBases.SingleOrDefaultAsync(x => x.ProjectId == projectId && x.Id == id && x.DeletedAt == null, ct); if (item is null) return false; var now = clock.GetUtcNow(); item.Delete(now); foreach (var document in await db.KnowledgeBaseDocuments.Where(x => x.KnowledgeBaseId == id && x.DeletedAt == null).ToListAsync(ct)) document.Delete(now); await db.SaveChangesAsync(ct); return true; }
     public async Task<IReadOnlyList<KnowledgeBaseDocument>> ListDocumentsAsync(Guid projectId, Guid kbId, CancellationToken ct) => await db.KnowledgeBaseDocuments.AsNoTracking().Where(x => x.ProjectId == projectId && x.KnowledgeBaseId == kbId && x.DeletedAt == null).OrderBy(x => x.Title).ToArrayAsync(ct);
     public Task<KnowledgeBaseDocument?> FindDocumentAsync(Guid projectId, Guid kbId, Guid id, CancellationToken ct) => db.KnowledgeBaseDocuments.AsNoTracking().SingleOrDefaultAsync(x => x.ProjectId == projectId && x.KnowledgeBaseId == kbId && x.Id == id && x.DeletedAt == null, ct);
