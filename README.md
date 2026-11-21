@@ -99,6 +99,7 @@ stateDiagram-v2
 - [Platform administration agent](docs/design/003-platform-administration-agent.md) — a UI-created agent that configures its project through explicitly granted MCP tools.
 - [Agent consumer specification](docs/agent-consumer-specification.md) — integrate a coding agent with chat threads and signed webhook events.
 - [Knowledge Base microservice specification](docs/knowledge-base-microservice-specification.md) — proposed project-scoped documents, asynchronous pgvector indexing, and explicitly granted MCP retrieval.
+- [Tenancy microservice specification](docs/tenancy-microservice-specification.md) — proposed Clerk-account directory and organisation membership service with a dedicated PostgreSQL database.
 
 ## Repository status
 
@@ -172,6 +173,20 @@ Build the API, worker, and administration UI images, then start the complete loc
 ./run.sh -d
 docker compose ps
 ```
+
+### Tenancy database
+
+Compose provisions a separate `tenancy` database using the
+`tenancy-database-bootstrap` one-shot service. Set `TENANCY_POSTGRES_DB` to
+change its name and keep `TENANCY_CONNECTION_STRING` in sync. The experimental
+API can be started with `docker compose --profile tenancy-preview up -d tenancy-api`
+after configuring `CLERK_JWT_ISSUER`, `TENANCY_CLERK_AUDIENCE`, a secret
+`TENANCY_SERVICE_KEY`, and `TENANCY_BOOTSTRAP_ADMIN_CLERK_USER_IDS`. It applies
+its migrations only to the tenancy database. The API is an unfinished preview:
+Clerk webhooks, lifecycle cleanup, idempotency keys, the outbox publisher, and
+the existing account cutover are not implemented. Do not use it for production
+access decisions until those workflows are implemented. Existing PostgreSQL data
+and other databases are preserved.
 
 ### Knowledge bases
 
