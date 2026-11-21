@@ -1,0 +1,10 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeBase.Service", "src\\KnowledgeBase.Service\\KnowledgeBase.Service.csproj", "{81527961-42FB-4E46-93B7-7E0C5C614EF7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeBase.Api", "src\\KnowledgeBase.Api\\KnowledgeBase.Api.csproj", "{AEB654E7-2CB2-4BFB-8EDE-978E880981AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeBase.Worker", "src\\KnowledgeBase.Worker\\KnowledgeBase.Worker.csproj", "{3CFD6692-6AE1-4094-967B-176705DB0BF1}"
+EndProject
+Global
+EndGlobal

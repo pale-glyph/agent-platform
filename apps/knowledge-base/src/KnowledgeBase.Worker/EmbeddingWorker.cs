@@ -1,13 +1,13 @@
 using System.Security.Cryptography;
 using System.Text;
-using AgentPlatform.Domain.KnowledgeBases;
-using AgentPlatform.Infrastructure.Persistence;
+using KnowledgeBase.Service.Domain;
+using KnowledgeBase.Service.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AgentPlatform.EmbeddingWorker;
+namespace KnowledgeBase.Worker;
 
 /// <summary>Independently deployable, idempotent indexing worker. The model adapter is deliberately isolated so ONNX tokenisation/inference can be swapped without changing durable workflow semantics.</summary>
 public sealed class EmbeddingWorker(IServiceScopeFactory scopes, TimeProvider clock, ILogger<EmbeddingWorker> log) : BackgroundService
@@ -24,7 +24,7 @@ public sealed class EmbeddingWorker(IServiceScopeFactory scopes, TimeProvider cl
     }
     private async Task ProcessOneAsync(CancellationToken ct)
     {
-        await using var scope = scopes.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>(); var now = clock.GetUtcNow();
+        await using var scope = scopes.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<KnowledgeBaseDbContext>(); var now = clock.GetUtcNow();
         var job = await db.KnowledgeBaseIndexingJobs.OrderBy(x => x.CreatedAt).FirstOrDefaultAsync(x => x.Status == IndexingJobStatus.Pending || (x.Status == IndexingJobStatus.Processing && x.LeaseUntil < now), ct);
         if (job is null || !job.TryClaim(now, TimeSpan.FromMinutes(5))) return;
         await db.SaveChangesAsync(ct);
@@ -44,6 +44,6 @@ public sealed class EmbeddingWorker(IServiceScopeFactory scopes, TimeProvider cl
     // Token count is deliberately bounded here; production images replace this adapter with the checksum-pinned BGE tokenizer/ONNX implementation.
     private static IEnumerable<(string Text,int Start,int End)> Chunk(string text, int size, int overlap)
     { var tokens=text.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries); for(var start=0;start<tokens.Length;start+=size-overlap) { var take=Math.Min(size,tokens.Length-start); if(take<=0)yield break; yield return (string.Join(' ',tokens,start,take),start,start+take); if(start+take>=tokens.Length)yield break; } }
-    private static string VectorLiteral(string text) { var values=new float[KnowledgeBase.EmbeddingDimensions]; var bytes=SHA256.HashData(Encoding.UTF8.GetBytes(text)); for(var i=0;i<values.Length;i++)values[i]=(bytes[i%bytes.Length]-127.5f)/127.5f; var norm=MathF.Sqrt(values.Sum(x=>x*x)); return "["+string.Join(',',values.Select(x=>(x/norm).ToString("R",System.Globalization.CultureInfo.InvariantCulture)))+"]"; }
+    private static string VectorLiteral(string text) { var values=new float[KnowledgeBaseRecord.EmbeddingDimensions]; var bytes=SHA256.HashData(Encoding.UTF8.GetBytes(text)); for(var i=0;i<values.Length;i++)values[i]=(bytes[i%bytes.Length]-127.5f)/127.5f; var norm=MathF.Sqrt(values.Sum(x=>x*x)); return "["+string.Join(',',values.Select(x=>(x/norm).ToString("R",System.Globalization.CultureInfo.InvariantCulture)))+"]"; }
     private static string Sha(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
 }

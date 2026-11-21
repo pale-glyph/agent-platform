@@ -7,6 +7,8 @@ services:
     environment:
       ASPNETCORE_URLS: ${ASPNETCORE_URLS}
       ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      KnowledgeBase__Url: http://knowledge-base-api:8082
+      KnowledgeBase__ServiceKey: ${KNOWLEDGE_BASE_SERVICE_KEY}
       Nats__Url: ${NATS_URL}
       Nats__StreamName: ${NATS_STREAM_NAME}
       Clerk__Issuer: ${CLERK_JWT_ISSUER}
@@ -56,19 +58,16 @@ services:
   knowledge-base-api:
     build:
       context: .
-      dockerfile: apps/agent-platform-services/Dockerfile
-      target: knowledge-base-api
+      dockerfile: apps/knowledge-base/Dockerfile
+      target: api
     environment:
       ASPNETCORE_URLS: http://+:8082
-      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
+      ConnectionStrings__KnowledgeBase: ${KNOWLEDGE_BASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${KNOWLEDGE_BASE_POSTGRES_DB:-knowledge_base};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}}
       Clerk__Issuer: ${CLERK_JWT_ISSUER}
-      Nats__Url: ${NATS_URL}
-      Nats__StreamName: ${NATS_STREAM_NAME}
+      KnowledgeBase__ServiceKey: ${KNOWLEDGE_BASE_SERVICE_KEY}
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      knowledge-base-database-bootstrap:
+        condition: service_completed_successfully
     networks:
       default:
         aliases:
@@ -102,17 +101,13 @@ services:
   embedding-worker:
     build:
       context: .
-      dockerfile: apps/agent-platform-services/Dockerfile
-      target: embedding-worker
+      dockerfile: apps/knowledge-base/Dockerfile
+      target: worker
     environment:
-      ConnectionStrings__Platform: ${PLATFORM_CONNECTION_STRING}
-      Nats__Url: ${NATS_URL}
-      Nats__StreamName: ${NATS_STREAM_NAME}
+      ConnectionStrings__KnowledgeBase: ${KNOWLEDGE_BASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${KNOWLEDGE_BASE_POSTGRES_DB:-knowledge_base};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}}
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      knowledge-base-database-bootstrap:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   admin:
@@ -163,6 +158,19 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+
+  knowledge-base-database-bootstrap:
+    image: postgres:17-trixie
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PLATFORM_POSTGRES_USER: ${POSTGRES_USER}
+      KNOWLEDGE_BASE_POSTGRES_DB: ${KNOWLEDGE_BASE_POSTGRES_DB:-knowledge_base}
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["until pg_isready --host=postgres --username=\"$$PLATFORM_POSTGRES_USER\" --dbname=postgres; do sleep 1; done; if ! psql --host=postgres --username=\"$$PLATFORM_POSTGRES_USER\" --dbname=postgres --tuples-only --no-align --command=\"SELECT 1 FROM pg_database WHERE datname = '$$KNOWLEDGE_BASE_POSTGRES_DB'\" | grep -qx 1; then psql --host=postgres --username=\"$$PLATFORM_POSTGRES_USER\" --dbname=postgres --command=\"CREATE DATABASE \\\"$$KNOWLEDGE_BASE_POSTGRES_DB\\\"\"; fi"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   nats:
     image: nats:2.10-alpine
